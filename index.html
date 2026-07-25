@@ -7,7 +7,7 @@
     <!-- Logo 🏥 SVG siêu nhẹ -->
     <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🏥</text></svg>">
     
-    <!-- Tailwind CSS -->
+    <!-- Tailwind CSS (Bỏ qua cảnh báo vàng trong Console) -->
     <script src="https://cdn.tailwindcss.com"></script>
     
     <!-- SheetJS để xuất file Excel -->
@@ -85,7 +85,7 @@
     <div id="main-app" class="hidden flex flex-col h-full w-full max-w-[1200px] mx-auto bg-white shadow-xl relative">
         
         <!-- Header -->
-        <header class="bg-blue-700 text-white p-4 flex justify-between items-center shadow-md shrink-0 flex-wrap gap-2">
+        <header class="bg-blue-700 text-white p-4 flex justify-between items-center shadow-md shrink-0">
             <div class="flex items-center space-x-3">
                 <div class="bg-white p-1.5 rounded-md hidden sm:block">
                     <svg class="w-6 h-6 text-blue-700" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"></path></svg>
@@ -95,15 +95,15 @@
                     <p id="userInfoDisplay" class="text-xs text-blue-200 mt-0.5">Đang tải thông tin...</p>
                 </div>
             </div>
-            <div class="flex space-x-2">
+            <div class="flex space-x-3">
                 <a href="danhsach.html" class="bg-green-600 hover:bg-green-700 text-white font-medium py-1.5 px-3 sm:px-4 rounded text-sm transition shadow-sm flex items-center">
                     <svg class="w-4 h-4 mr-1 hidden sm:block" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"></path></svg>
                     Xem danh sách
                 </a>
-                <button id="btnAdminPanel" onclick="window.toggleAdminPanel()" class="hidden bg-yellow-500 hover:bg-yellow-600 text-white font-medium py-1.5 px-3 sm:px-4 rounded text-sm transition shadow-sm">
+                <button id="btnAdminPanel" onclick="window.toggleAdminPanel()" class="hidden bg-yellow-500 hover:bg-yellow-600 text-white font-medium py-1.5 px-4 rounded text-sm transition shadow-sm">
                     Quản lý hệ thống
                 </button>
-                <button onclick="window.handleLogout()" class="bg-blue-800 hover:bg-blue-900 text-white font-medium py-1.5 px-3 sm:px-4 rounded text-sm transition shadow-sm border border-blue-600">
+                <button onclick="window.handleLogout()" class="bg-blue-800 hover:bg-blue-900 text-white font-medium py-1.5 px-4 rounded text-sm transition shadow-sm border border-blue-600">
                     Đăng xuất
                 </button>
             </div>
@@ -116,12 +116,20 @@
                     <h2 class="text-2xl font-bold text-gray-800">Quản lý Tài Khoản & Báo Cáo</h2>
                     <p class="text-gray-500 text-sm mt-1">Admin có thể quản lý người dùng và xuất dữ liệu báo cáo.</p>
                 </div>
-                <div class="flex space-x-3">
-                    <button onclick="window.exportToExcel()" class="bg-green-600 hover:bg-green-700 text-white font-medium py-2 px-4 rounded transition flex items-center shadow-sm">
+                <div class="flex flex-wrap gap-3 items-center">
+                    <!-- Bộ lọc ngày xuất Excel -->
+                    <div class="flex items-center space-x-2 bg-white p-1.5 rounded-md border border-gray-300 shadow-sm">
+                        <span class="text-sm font-medium text-gray-600 hidden lg:inline px-2">Ngày chẩn đoán:</span>
+                        <input type="date" id="exportTuNgay" title="Từ ngày" class="border border-gray-200 rounded p-1.5 text-sm outline-none focus:ring-1 focus:ring-blue-500">
+                        <span class="text-gray-400">-</span>
+                        <input type="date" id="exportDenNgay" title="Đến ngày" class="border border-gray-200 rounded p-1.5 text-sm outline-none focus:ring-1 focus:ring-blue-500">
+                    </div>
+                    
+                    <button onclick="window.exportToExcel()" class="bg-green-600 hover:bg-green-700 text-white font-medium py-2 px-4 rounded transition flex items-center shadow-sm whitespace-nowrap">
                         <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
-                        Xuất báo cáo Excel
+                        Xuất báo cáo
                     </button>
-                    <button onclick="window.openUserModal()" class="bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded transition shadow-sm flex items-center">
+                    <button onclick="window.openUserModal()" class="bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded transition shadow-sm flex items-center whitespace-nowrap">
                         <svg class="w-5 h-5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path></svg>
                         Thêm nhân viên
                     </button>
@@ -250,18 +258,23 @@
                                 <input type="text" id="quan_huyen" required readonly placeholder="Tự động điền theo Xã" class="w-full border border-gray-300 bg-gray-100 rounded p-2 text-gray-600 cursor-not-allowed">
                             </div>
                         </div>
-                        <div class="grid grid-cols-1 gap-5">
-                            <div>
-                                <label class="block text-sm font-medium text-gray-700 mb-1">Địa chỉ cụ thể (nơi ở hiện nay) (15) <span class="text-red-500">*</span></label>
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-5">
+                            <div class="md:col-span-1">
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Địa chỉ cụ thể (nơi ở) (15) <span class="text-red-500">*</span></label>
                                 <input type="text" id="dia_chi_chi_tiet" required placeholder="Số nhà, đường, khóm..." class="w-full border border-gray-300 rounded p-2 focus:ring-2 focus:ring-blue-500 outline-none">
                             </div>
-                            <div>
+                            <div class="md:col-span-1">
                                 <label class="block text-sm font-medium text-gray-700 mb-1">Nơi làm việc / Học tập (16)</label>
                                 <input type="text" id="noi_lam_viec" placeholder="Tên công ty, trường học..." class="w-full border border-gray-300 rounded p-2 focus:ring-2 focus:ring-blue-500 outline-none">
                             </div>
-                            <div>
+                            <div class="md:col-span-1">
                                 <label class="block text-sm font-medium text-gray-700 mb-1">Điện thoại liên hệ (13)</label>
                                 <input type="tel" id="dien_thoai" placeholder="Nhập số điện thoại bệnh nhân" class="w-full border border-gray-300 rounded p-2 focus:ring-2 focus:ring-blue-500 outline-none">
+                            </div>
+                            <!-- Thêm trường Ghi chú -->
+                            <div class="md:col-span-3">
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Ghi chú (bổ sung)</label>
+                                <textarea id="ghi_chu" rows="2" placeholder="Nhập ghi chú thêm nếu có..." class="w-full border border-gray-300 rounded p-2 focus:ring-2 focus:ring-blue-500 outline-none"></textarea>
                             </div>
                         </div>
                     </div>
@@ -299,6 +312,13 @@
                                     <option value="Xác định phòng xét nghiệm">3. Xác định phòng xét nghiệm</option>
                                 </select>
                             </div>
+                            
+                            <!-- Bổ sung Chẩn đoán kèm theo -->
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Chẩn đoán kèm theo</label>
+                                <input type="text" id="chan_doan_kem_theo" placeholder="Nhập chẩn đoán kèm theo (nếu có)..." class="w-full border border-gray-300 rounded p-2 focus:ring-2 focus:ring-blue-500 outline-none">
+                            </div>
+
                             <div>
                                 <label class="block text-sm font-medium text-gray-700 mb-1">Tình trạng hiện tại (12) <span class="text-red-500">*</span></label>
                                 <select id="tinh_trang_hien_tai" required class="w-full border border-gray-300 rounded p-2 focus:ring-2 focus:ring-blue-500 outline-none">
@@ -312,8 +332,8 @@
                                 </select>
                             </div>
                             <div>
-                                <label class="block text-sm font-medium text-gray-700 mb-1">Điều trị (tiêm, uống vacxin) (18)</label>
-                                <select id="dieu_tri_vaccine" class="w-full border border-gray-300 rounded p-2 focus:ring-2 focus:ring-blue-500 outline-none">
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Điều trị (tiêm, uống vacxin) (18) <span class="text-red-500">*</span></label>
+                                <select id="dieu_tri_vaccine" required class="w-full border border-gray-300 rounded p-2 focus:ring-2 focus:ring-blue-500 outline-none">
                                     <option value="">-- Chọn --</option>
                                     <option value="Có">1. Có</option>
                                     <option value="Không">2. Không</option>
@@ -390,6 +410,10 @@
                                 <input type="date" id="ngay_nhap_vien" required class="w-full border border-gray-300 rounded p-2 focus:ring-2 focus:ring-blue-500 outline-none">
                             </div>
                             <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Ngày chẩn đoán (25.1) <span class="text-red-500">*</span></label>
+                                <input type="date" id="ngay_chan_doan" required class="w-full border border-gray-300 rounded p-2 focus:ring-2 focus:ring-blue-500 outline-none">
+                            </div>
+                            <div>
                                 <label class="block text-sm font-medium text-gray-700 mb-1">Ngày ra viện/chuyển viện/tử vong (26)</label>
                                 <input type="date" id="ngay_ra_vien" class="w-full border border-gray-300 rounded p-2 focus:ring-2 focus:ring-blue-500 outline-none">
                             </div>
@@ -453,7 +477,12 @@
                     <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path></svg>
                     Quay lại
                 </button>
-                <div class="flex-1"></div>
+                <div class="flex-1 flex justify-center">
+                    <!-- Nút Hủy sửa (Chỉ hiện khi Edit Mode) -->
+                    <button type="button" id="btnCancelEdit" onclick="window.cancelEdit()" class="hidden bg-red-100 hover:bg-red-200 text-red-700 font-medium py-2 px-4 rounded shadow-sm transition items-center">
+                        Hủy cập nhật
+                    </button>
+                </div>
                 <button type="button" id="btnNext" onclick="window.nextStep()" class="bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-6 rounded shadow-sm transition flex items-center">
                     Tiếp theo
                     <svg class="w-4 h-4 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"></path></svg>
@@ -531,7 +560,7 @@
             </div>
         </div>
     </div>
-
+    
     <!-- Hộp thoại Tùy chỉnh thay thế confirm() -->
     <div id="customConfirm" class="fixed inset-0 hidden z-[9999] flex items-center justify-center">
         <div class="absolute inset-0 bg-black bg-opacity-50"></div>
@@ -549,7 +578,7 @@
     </div>
 
     <!-- Toast Thông Báo -->
-    <div id="toast" class="fixed top-5 right-5 text-white font-medium px-6 py-3 rounded-md shadow-lg transition-all duration-300 transform translate-x-full opacity-0 hidden z-50 flex items-center">
+    <div id="toast" class="fixed top-5 right-5 text-white font-medium px-6 py-3 rounded-md shadow-lg transition-all duration-300 transform translate-x-full opacity-0 hidden z-[9999] flex items-center">
         <span id="toastIcon" class="mr-2"></span>
         <span id="toastMsg"></span>
     </div>
@@ -559,10 +588,8 @@
 
     <!-- LOGIC JAVASCRIPT -->
     <script>
-        // Khởi tạo Supabase client sử dụng biến cấu hình từ config.js
         const supabaseClient = window.supabase.createClient(CONFIG.SUPABASE_URL, CONFIG.SUPABASE_KEY);
 
-        // Biến toàn cục
         let currentUser = null;
         let currentStep = 1;
         const totalSteps = 5;
@@ -573,11 +600,6 @@
         let danhMucBenh = [];
         let danhSachXaCuaTinh = [];
 
-        const formContainer = document.getElementById('form-container');
-        const adminPanel = document.getElementById('admin-panel');
-        const btnAdminPanel = document.getElementById('btnAdminPanel');
-
-        // Hàm Hiển thị Toast thông báo
         window.showToast = function(message, type = 'success') {
             const toast = document.getElementById('toast');
             const msg = document.getElementById('toastMsg');
@@ -599,7 +621,6 @@
             }, 3500);
         };
 
-        // Hàm customConfirm thay thế cho confirm()
         window.customConfirm = function(title, message) {
             return new Promise((resolve) => {
                 const modal = document.getElementById('customConfirm');
@@ -619,41 +640,67 @@
             });
         };
 
-        // Tự động kiểm tra trạng thái đăng nhập
-        window.checkSession = function() {
+        window.addEventListener('DOMContentLoaded', async () => {
             const savedSession = sessionStorage.getItem('userSession');
-            if (savedSession) {
-                try {
-                    currentUser = JSON.parse(savedSession);
-                    document.getElementById('login-screen').classList.add('hidden');
-                    document.getElementById('main-app').classList.remove('hidden');
-                    
-                    document.getElementById('userInfoDisplay').innerHTML = `
-                        <span class="font-semibold text-white">${currentUser.ten}</span> 
-                        <span class="mx-1">•</span> ${currentUser.khoa}
-                    `;
-                    
-                    if (currentUser.quyen === 'admin') {
-                        btnAdminPanel.classList.remove('hidden');
-                    } else {
-                        btnAdminPanel.classList.add('hidden');
-                        adminPanel.classList.add('hidden');
-                        formContainer.classList.remove('hidden');
-                    }
-
-                    document.getElementById('khoa_phong').value = currentUser.khoa || '';
-                    document.getElementById('nguoi_bao_cao_ten').value = currentUser.ten || '';
-                    document.getElementById('nguoi_bao_cao_sdt').value = currentUser.sdt || '';
-                    document.getElementById('nguoi_bao_cao_email').value = currentUser.email || '';
-
-                    window.loadMasterData();
-                } catch(e) {
-                    sessionStorage.removeItem('userSession');
-                }
+            if (!savedSession) {
+                document.getElementById('login-screen').classList.remove('hidden');
+                return;
             }
-        };
 
-        // Hàm Đăng Nhập
+            // Tách biệt try-catch JSON parse để tránh lỗi DOM xóa luôn phiên đăng nhập của người dùng
+            let parsedUser;
+            try {
+                parsedUser = JSON.parse(savedSession);
+            } catch(e) {
+                sessionStorage.removeItem('userSession');
+                document.getElementById('login-screen').classList.remove('hidden');
+                return;
+            }
+
+            currentUser = parsedUser;
+            
+            try {
+                document.getElementById('login-screen').classList.add('hidden');
+                document.getElementById('main-app').classList.remove('hidden');
+                
+                document.getElementById('userInfoDisplay').innerHTML = `
+                    <span class="font-semibold text-white">${currentUser.ten}</span> 
+                    <span class="mx-1">•</span> ${currentUser.khoa}
+                `;
+                
+                const btnAdminPanel = document.getElementById('btnAdminPanel');
+                const adminPanel = document.getElementById('admin-panel');
+                const formContainer = document.getElementById('form-container');
+
+                if (currentUser.quyen === 'admin') {
+                    btnAdminPanel.classList.remove('hidden');
+                } else {
+                    btnAdminPanel.classList.add('hidden');
+                    adminPanel.classList.add('hidden');
+                    formContainer.classList.remove('hidden');
+                }
+
+                document.getElementById('khoa_phong').value = currentUser.khoa || '';
+                document.getElementById('nguoi_bao_cao_ten').value = currentUser.ten || '';
+                document.getElementById('nguoi_bao_cao_sdt').value = currentUser.sdt || '';
+                document.getElementById('nguoi_bao_cao_email').value = currentUser.email || '';
+
+                // Load danh mục & Khởi tạo tính năng logic JS
+                await window.loadMasterData();
+                window.initAppLogic(); 
+
+                // CHẾ ĐỘ SỬA: Kiểm tra nếu đang có Edit ID trong máy thì tải dữ liệu điền vào Form
+                const editId = sessionStorage.getItem('editReportId');
+                if (editId) {
+                    await window.loadEditData(editId);
+                }
+
+            } catch (error) {
+                console.error("Lỗi khởi tạo ứng dụng:", error);
+                window.showToast("Cảnh báo: Có lỗi xảy ra trong quá trình tạo trang.", "error");
+            }
+        });
+
         window.handleLogin = async function() {
             const tk = document.getElementById('loginUsername').value;
             const pass = document.getElementById('loginPassword').value;
@@ -666,7 +713,6 @@
             errBox.classList.remove('hidden');
             
             try {
-                // Truy vấn bảng nhanvien
                 const { data, error } = await supabaseClient.from('nhanvien')
                     .select('*')
                     .eq('tai_khoan', tk)
@@ -676,38 +722,25 @@
                 errBox.classList.remove('text-blue-600', 'bg-blue-50', 'border-blue-100');
                 errBox.classList.add('text-red-600', 'bg-red-50', 'border-red-100');
 
-                if (error) {
-                    errBox.innerHTML = `Lỗi kết nối: ${error.message}`;
-                    return;
-                }
-
-                if (!data) {
+                if (error || !data) {
                     errBox.innerHTML = "Sai tài khoản hoặc mật khẩu!";
                     return;
                 }
 
-                // Xử lý khi đăng nhập thành công
-                currentUser = data;
-                sessionStorage.setItem('userSession', JSON.stringify(currentUser));
-                window.checkSession();
-                window.showToast("Đăng nhập hệ thống thành công!");
+                sessionStorage.setItem('userSession', JSON.stringify(data));
+                window.location.reload(); // Reload lại để kích hoạt luồng DOMContentLoaded chuẩn
                 
             } catch (ex) {
                 errBox.classList.remove('text-blue-600', 'bg-blue-50', 'border-blue-100');
                 errBox.classList.add('text-red-600', 'bg-red-50', 'border-red-100');
-                errBox.innerHTML = "Lỗi mạng nghiêm trọng: " + ex.message;
+                errBox.innerHTML = "Lỗi kết nối: " + ex.message;
             }
         };
 
         window.handleLogout = function() {
-            currentUser = null;
             sessionStorage.removeItem('userSession');
-            document.getElementById('login-screen').classList.remove('hidden');
-            document.getElementById('main-app').classList.add('hidden');
-            document.getElementById('loginPassword').value = '';
-            document.getElementById('loginError').classList.add('hidden');
-            window.goToStep(1);
-            if(!adminPanel.classList.contains('hidden')) window.toggleAdminPanel();
+            sessionStorage.removeItem('editReportId');
+            window.location.reload();
         };
 
         window.toggleAdminPanel = function() {
@@ -715,6 +748,9 @@
                 window.showToast("Bạn không có quyền truy cập chức năng này!", "error");
                 return;
             }
+            const adminPanel = document.getElementById('admin-panel');
+            const formContainer = document.getElementById('form-container');
+            const btnAdminPanel = document.getElementById('btnAdminPanel');
             
             if(adminPanel.classList.contains('hidden')) {
                 adminPanel.classList.remove('hidden');
@@ -808,7 +844,6 @@
                 form.reportValidity();
                 return;
             }
-
             const id = document.getElementById('userId').value;
             const payload = {
                 ten: document.getElementById('userTen').value,
@@ -819,11 +854,9 @@
                 khoa: document.getElementById('userKhoa').value,
                 quyen: document.getElementById('userRole').value,
             };
-
             let res;
             if (id) { res = await supabaseClient.from('nhanvien').update(payload).eq('id', id); } 
             else { res = await supabaseClient.from('nhanvien').insert([payload]); }
-
             if(res.error) window.showToast("Lỗi: Tài khoản có thể đã bị trùng!", 'error');
             else { 
                 window.showToast(id ? "Đã cập nhật thành công!" : "Đã tạo tài khoản mới!"); 
@@ -841,13 +874,11 @@
             }
         };
 
-        // Vượt giới hạn 1000 dòng tải dữ liệu của Supabase
         window.fetchAllSupabaseData = async function(tableName) {
             let allData = [];
             let from = 0;
             const step = 999; 
             let keepFetching = true;
-
             try {
                 while (keepFetching) {
                     const { data, error } = await supabaseClient.from(tableName).select('*').range(from, from + step);
@@ -872,7 +903,6 @@
 
         window.loadMasterData = async function() {
             try {
-                // Tải Hành chính (Tự quét tên bảng có hay không gạch dưới)
                 let hc = await window.fetchAllSupabaseData('dm_hanhchinh');
                 if(!hc || hc.length === 0) hc = await window.fetchAllSupabaseData('dm_hanh_chinh');
                 if(hc && hc.length > 0) {
@@ -882,7 +912,6 @@
                     danhMucHanhChinh = hc.map(item => ({ tinh: item[tinhCol], xa: item[xaCol] }));
                 }
 
-                // Tải Dân tộc & Nghề nghiệp & Bệnh (Tự quét tên bảng)
                 danhMucDanToc = await window.fetchAllSupabaseData('dm_dan_toc');
                 if(!danhMucDanToc || danhMucDanToc.length === 0) danhMucDanToc = await window.fetchAllSupabaseData('dm_dantoc');
                 
@@ -893,7 +922,7 @@
                 if(!danhMucBenh || danhMucBenh.length === 0) danhMucBenh = await window.fetchAllSupabaseData('dm_benhtruyennhiem');
                 
             } catch (error) {
-                window.showToast("Có lỗi khi tải danh mục gốc (F12 để xem chi tiết)", "error");
+                window.showToast("Có lỗi khi tải danh mục gốc", "error");
                 console.error("loadMasterData Error:", error);
             }
         };
@@ -911,7 +940,33 @@
                     return;
                 }
 
-                // Map data theo đúng 32 cột chuẩn BYT
+                // Tiền xử lý lọc dữ liệu theo Ngày Chẩn Đoán nếu người dùng có chọn
+                const tuNgayInput = document.getElementById('exportTuNgay').value;
+                const denNgayInput = document.getElementById('exportDenNgay').value;
+                
+                if (tuNgayInput || denNgayInput) {
+                    const fromTime = tuNgayInput ? new Date(tuNgayInput).getTime() : 0;
+                    let toTime = Infinity;
+                    if (denNgayInput) {
+                        const toObj = new Date(denNgayInput);
+                        toObj.setHours(23, 59, 59, 999);
+                        toTime = toObj.getTime();
+                    }
+
+                    allData = allData.filter(item => {
+                        if (!item.ngay_chan_doan) return false;
+                        const itemDateObj = window.parseVietnameseDate(item.ngay_chan_doan);
+                        if (!itemDateObj) return false;
+                        const itemTime = itemDateObj.getTime();
+                        return itemTime >= fromTime && itemTime <= toTime;
+                    });
+                }
+
+                if (allData.length === 0) {
+                    window.showToast("Không có ca bệnh nào trong khoảng thời gian chẩn đoán này!", "error");
+                    return;
+                }
+
                 const excelData = allData.map(item => ({
                     "STT (1)": item.id, 
                     "Họ và tên (2)": item.ho_va_ten || "",
@@ -961,7 +1016,7 @@
             } catch (err) {
                 window.showToast("Lỗi xuất Excel: " + err.message, "error");
             } finally {
-                btn.innerHTML = `<svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg> Xuất báo cáo Excel`;
+                btn.innerHTML = `<svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg> Xuất báo cáo`;
                 btn.disabled = false;
             }
         };
@@ -969,6 +1024,43 @@
         window.toTitleCase = function(str) {
             if(!str) return '';
             return str.toLowerCase().split(' ').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
+        };
+
+        window.formatDDMMYYYY = function(dateStr) {
+            if (!dateStr) return null;
+            const parts = dateStr.split('-');
+            if (parts.length === 3) { return `${parts[2]}/${parts[1]}/${parts[0]}`; }
+            return dateStr;
+        };
+
+        window.formatYYYYMMDD = function(dateStr) {
+            if (!dateStr) return '';
+            const parts = dateStr.split('/');
+            if (parts.length === 3) { return `${parts[2]}-${parts[1]}-${parts[0]}`; }
+            return dateStr;
+        };
+
+        window.parseVietnameseDate = function(dateString) {
+            if (!dateString) return null;
+            const parts = dateString.split('/');
+            if (parts.length === 3) {
+                return new Date(parts[2], parseInt(parts[1]) - 1, parts[0]);
+            }
+            return null;
+        };
+
+        window.validateStep = function(step) {
+            const stepDiv = document.getElementById(`step${step}`);
+            const requiredInputs = stepDiv.querySelectorAll('input[required], select[required], textarea[required]');
+            for (let input of requiredInputs) { 
+                if (!input.value.trim() && !input.disabled) {
+                    input.focus();
+                    input.classList.add('border-red-500', 'ring-red-200');
+                    setTimeout(() => input.classList.remove('border-red-500', 'ring-red-200'), 2000);
+                    return false; 
+                } 
+            }
+            return true;
         };
 
         window.goToStep = function(step) {
@@ -1002,30 +1094,6 @@
         window.nextStep = function() { if (currentStep < totalSteps) window.goToStep(currentStep + 1); };
         window.prevStep = function() { if (currentStep > 1) window.goToStep(currentStep - 1); };
 
-        window.validateStep = function(step) {
-            const stepDiv = document.getElementById(`step${step}`);
-            const requiredInputs = stepDiv.querySelectorAll('input[required], select[required]');
-            for (let input of requiredInputs) { 
-                if (!input.value.trim() && !input.disabled) {
-                    input.focus();
-                    input.classList.add('border-red-500', 'ring-red-200');
-                    setTimeout(() => input.classList.remove('border-red-500', 'ring-red-200'), 2000);
-                    return false; 
-                } 
-            }
-            return true;
-        };
-
-        // Hàm hỗ trợ format định dạng ngày YYYY-MM-DD (từ input date) sang DD/MM/YYYY
-        window.formatDDMMYYYY = function(dateStr) {
-            if (!dateStr) return null;
-            const parts = dateStr.split('-'); // input type="date" trả về YYYY-MM-DD
-            if (parts.length === 3) {
-                return `${parts[2]}/${parts[1]}/${parts[0]}`; // Đảo lại thành DD/MM/YYYY
-            }
-            return dateStr;
-        };
-
         window.submitForm = async function() {
             if (!window.validateStep(5)) { window.showToast("Vui lòng điền đủ các trường bắt buộc", 'error'); return; }
 
@@ -1033,7 +1101,6 @@
             const originalText = btn.innerHTML;
             btn.innerHTML = "ĐANG LƯU DỮ LIỆU..."; btn.disabled = true;
 
-            // Xử lý Cấp độ bệnh: Chỉ lấy chuỗi trong ngoặc đơn nếu có
             let capDoBenhValue = document.getElementById('cap_do_benh').value;
             const matchCD = capDoBenhValue.match(/\(([^)]+)\)/);
             if (matchCD) { capDoBenhValue = matchCD[1]; }
@@ -1053,9 +1120,11 @@
                 dia_chi_chi_tiet: document.getElementById('dia_chi_chi_tiet').value,
                 noi_lam_viec: document.getElementById('noi_lam_viec').value,
                 dien_thoai: document.getElementById('dien_thoai').value,
+                ghi_chu: document.getElementById('ghi_chu').value,
                 
                 chan_doan_chinh: document.getElementById('chan_doan_chinh').value || document.getElementById('chan_doan_hien_thi').value,
-                cap_do_benh: capDoBenhValue, // Đã bóc tách lấy mã
+                chan_doan_kem_theo: document.getElementById('chan_doan_kem_theo').value,
+                cap_do_benh: capDoBenhValue, 
                 phan_loai_chan_doan: document.getElementById('phan_loai_chan_doan').value,
                 tinh_trang_hien_tai: document.getElementById('tinh_trang_hien_tai').value,
                 dieu_tri_vaccine: document.getElementById('dieu_tri_vaccine').value,
@@ -1068,8 +1137,10 @@
                 loai_xn: document.getElementById('loai_xn').value,
                 ket_qua_xn: document.getElementById('ket_qua_xn').value,
                 ten_xn_cu_the: document.getElementById('ten_xn_cu_the').value,
+                
                 ngay_khoi_phat: window.formatDDMMYYYY(document.getElementById('ngay_khoi_phat').value),
                 ngay_nhap_vien: window.formatDDMMYYYY(document.getElementById('ngay_nhap_vien').value),
+                ngay_chan_doan: window.formatDDMMYYYY(document.getElementById('ngay_chan_doan').value),
                 ngay_ra_vien: window.formatDDMMYYYY(document.getElementById('ngay_ra_vien').value),
                 
                 co_so_dieu_tri: document.getElementById('co_so_dieu_tri').value,
@@ -1079,16 +1150,29 @@
                 nguoi_bao_cao_email: document.getElementById('nguoi_bao_cao_email').value
             };
 
-            const { data, error } = await supabaseClient.from('form_benh_truyen_nhiem').insert([payload]);
+            const editId = sessionStorage.getItem('editReportId');
+            let result;
 
-            if (error) {
-                console.error(error);
-                window.showToast("Lỗi khi lưu: " + error.message, 'error');
+            if (editId) {
+                result = await supabaseClient.from('form_benh_truyen_nhiem').update(payload).eq('id', editId);
             } else {
-                window.showToast("Lưu báo cáo thành công! Form đã được làm sạch.");
+                result = await supabaseClient.from('form_benh_truyen_nhiem').insert([payload]);
+            }
+
+            if (result.error) {
+                console.error(result.error);
+                window.showToast("Lỗi khi lưu: " + result.error.message, 'error');
+            } else {
+                window.showToast(editId ? "Cập nhật thành công!" : "Lưu báo cáo thành công! Form đã được làm sạch.");
+                
+                if(editId) {
+                    sessionStorage.removeItem('editReportId');
+                    setTimeout(() => { window.location.href = 'danhsach.html'; }, 1000);
+                    return; 
+                }
+
                 document.getElementById('reportForm').reset();
                 
-                // Khôi phục giá trị user và trường ẩn
                 document.getElementById('khoa_phong').value = currentUser.khoa || '';
                 document.getElementById('nguoi_bao_cao_ten').value = currentUser.ten || '';
                 document.getElementById('nguoi_bao_cao_sdt').value = currentUser.sdt || '';
@@ -1098,9 +1182,8 @@
                 document.getElementById('xa_phuong').disabled = true;
                 document.getElementById('xa_phuong').value = '';
                 document.getElementById('chan_doan_chinh').value = '';
-                document.getElementById('cap_do_benh').innerHTML = '<option value="">-- Tự động lọc sau khi chọn Bệnh --</option>';
+                document.getElementById('cap_do_benh').value = '';
                 
-                // Trả các triggers về mặc định để hiện/ẩn đúng
                 document.getElementById('ngay_sinh').dispatchEvent(new Event('change'));
                 document.getElementById('dieu_tri_vaccine').dispatchEvent(new Event('change'));
                 document.getElementById('lay_mau_xn').dispatchEvent(new Event('change'));
@@ -1112,11 +1195,96 @@
             btn.innerHTML = originalText; btn.disabled = false;
         };
 
+        window.cancelEdit = function() {
+            sessionStorage.removeItem('editReportId');
+            window.location.href = 'danhsach.html';
+        };
+
+        window.loadEditData = async function(id) {
+            window.showToast("Đang tải dữ liệu ca bệnh...", "success");
+            const { data, error } = await supabaseClient.from('form_benh_truyen_nhiem').select('*').eq('id', id).single();
+            
+            if (error || !data) {
+                window.showToast("Không tìm thấy dữ liệu ca bệnh!", "error");
+                return;
+            }
+
+            const btnSubmit = document.getElementById('btnSubmit');
+            btnSubmit.innerHTML = '<svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg> CẬP NHẬT DỮ LIỆU';
+            btnSubmit.classList.remove('bg-green-600', 'hover:bg-green-700');
+            btnSubmit.classList.add('bg-yellow-600', 'hover:bg-yellow-700');
+            document.getElementById('btnCancelEdit').classList.remove('hidden');
+
+            document.getElementById('khoa_phong').value = data.khoa_phong || '';
+            document.getElementById('ho_va_ten').value = data.ho_va_ten || '';
+            document.getElementById('cmnd').value = data.cmnd || '';
+            document.getElementById('ngay_sinh').value = window.formatYYYYMMDD(data.ngay_sinh);
+            document.getElementById('gioi_tinh').value = data.gioi_tinh || '';
+            document.getElementById('dan_toc').value = data.dan_toc || '';
+            document.getElementById('nghe_nghiep').value = data.nghe_nghiep || '';
+            
+            document.getElementById('tinh_tp').value = data.tinh_tp || '';
+            document.getElementById('xa_phuong').disabled = false;
+            document.getElementById('xa_phuong').value = data.xa_phuong || '';
+            document.getElementById('quan_huyen').value = data.quan_huyen || '';
+            document.getElementById('dia_chi_chi_tiet').value = data.dia_chi_chi_tiet || '';
+            document.getElementById('noi_lam_viec').value = data.noi_lam_viec || '';
+            document.getElementById('dien_thoai').value = data.dien_thoai || '';
+            document.getElementById('ghi_chu').value = data.ghi_chu || '';
+            
+            let tenBenhHienThi = data.chan_doan_chinh || '';
+            if (danhMucBenh && danhMucBenh.length > 0) {
+                let found = danhMucBenh.find(b => 
+                    (b.ma_icd_chinh && b.ma_icd_chinh.toUpperCase() === tenBenhHienThi.toUpperCase()) || 
+                    (b.ma_icd && b.ma_icd.toUpperCase() === tenBenhHienThi.toUpperCase()) ||
+                    (b.ma_icd10 && b.ma_icd10.toUpperCase() === tenBenhHienThi.toUpperCase())
+                );
+                if (found) {
+                    const keys = Object.keys(found);
+                    const nameKey = found.ten_benh_chung ? 'ten_benh_chung' : (keys.find(k => k.toLowerCase().includes('benh')) || keys[1] || keys[0]);
+                    tenBenhHienThi = found[nameKey] || tenBenhHienThi;
+                }
+            }
+            document.getElementById('chan_doan_hien_thi').value = tenBenhHienThi;
+            document.getElementById('chan_doan_chinh').value = data.chan_doan_chinh || '';
+            document.getElementById('chan_doan_kem_theo').value = data.chan_doan_kem_theo || '';
+            
+            // NOTE: Cấp độ bệnh là input, nên set thẳng value thay vì innerHTML
+            document.getElementById('cap_do_benh').value = data.cap_do_benh || '';
+            
+            document.getElementById('phan_loai_chan_doan').value = data.phan_loai_chan_doan || '';
+            document.getElementById('tinh_trang_hien_tai').value = data.tinh_trang_hien_tai || '';
+            document.getElementById('dieu_tri_vaccine').value = data.dieu_tri_vaccine || '';
+            document.getElementById('so_lan_tiem').value = data.so_lan_tiem || '';
+            document.getElementById('chan_doan_ra_vien').value = data.chan_doan_ra_vien || '';
+            document.getElementById('don_vi_chuyen_toi').value = data.don_vi_chuyen_toi || '';
+            document.getElementById('tinh_trang_khac').value = data.tinh_trang_khac || '';
+            
+            document.getElementById('lay_mau_xn').value = data.lay_mau_xn || '';
+            document.getElementById('loai_xn').value = data.loai_xn || '';
+            document.getElementById('ket_qua_xn').value = data.ket_qua_xn || '';
+            document.getElementById('ten_xn_cu_the').value = data.ten_xn_cu_the || '';
+            
+            document.getElementById('ngay_khoi_phat').value = window.formatYYYYMMDD(data.ngay_khoi_phat);
+            document.getElementById('ngay_nhap_vien').value = window.formatYYYYMMDD(data.ngay_nhap_vien);
+            document.getElementById('ngay_chan_doan').value = window.formatYYYYMMDD(data.ngay_chan_doan);
+            document.getElementById('ngay_ra_vien').value = window.formatYYYYMMDD(data.ngay_ra_vien);
+            
+            document.getElementById('hinh_thuc_dieu_tri').value = data.hinh_thuc_dieu_tri || '';
+
+            // Update các hiệu ứng form (ẩn/hiện các trường phụ thuộc)
+            document.getElementById('ngay_sinh').dispatchEvent(new Event('change'));
+            document.getElementById('dieu_tri_vaccine').dispatchEvent(new Event('change'));
+            document.getElementById('lay_mau_xn').dispatchEvent(new Event('change'));
+            document.getElementById('tinh_trang_hien_tai').dispatchEvent(new Event('change'));
+
+            window.goToStep(1);
+        };
+
         window.removeAccents = function(str) {
             return str.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
         };
 
-        // Khởi tạo Fuzzy Search (Hỗ trợ click xổ menu)
         window.setupFuzzySearch = function(inputId, dropdownId, dataArrayFn, renderItemFn, onSelectFn, searchKeyFn) {
             const input = document.getElementById(inputId);
             const dropdown = document.getElementById(dropdownId);
@@ -1173,11 +1341,8 @@
             });
         };
 
-        window.addEventListener('DOMContentLoaded', () => {
-            
-            window.checkSession();
-
-            // --- LOGIC: BẮT BUỘC NHẬP CHẨN ĐOÁN RA VIỆN NẾU TÌNH TRẠNG = RA VIỆN ---
+        window.initAppLogic = function() {
+            // TÌNH TRẠNG HIỆN TẠI (Bắt buộc chẩn đoán ra viện)
             const tinhTrangSelect = document.getElementById('tinh_trang_hien_tai');
             const chanDoanRaVienInput = document.getElementById('chan_doan_ra_vien');
             tinhTrangSelect.addEventListener('change', function() {
@@ -1191,7 +1356,7 @@
                 }
             });
 
-            // --- LOGIC: TÍNH TUỔI VÀ CCCD ---
+            // TÍNH TUỔI / CCCD
             const ngaySinhInput = document.getElementById('ngay_sinh');
             const cmndInput = document.getElementById('cmnd');
             const cmndAsterisk = document.getElementById('cmnd_asterisk');
@@ -1215,11 +1380,10 @@
                 }
             });
 
-            // --- LOGIC: ĐIỀU TRỊ VACCINE VÀ SỐ LẦN TIÊM ---
+            // ĐIỀU TRỊ VACCINE
             const vaccineSelect = document.getElementById('dieu_tri_vaccine');
             const soLanTiemContainer = document.getElementById('so_lan_tiem_container');
             const soLanTiemInput = document.getElementById('so_lan_tiem');
-            
             vaccineSelect.addEventListener('change', function() {
                 if (this.value.includes('Có') || this.value === '1. Có') {
                     soLanTiemContainer.style.display = 'block';
@@ -1232,7 +1396,7 @@
             });
             vaccineSelect.dispatchEvent(new Event('change'));
 
-            // --- LOGIC: XÉT NGHIỆM ---
+            // XÉT NGHIỆM
             const layMauSelect = document.getElementById('lay_mau_xn');
             const xnFields = [
                 { input: document.getElementById('loai_xn'), container: document.getElementById('container_loai_xn') },
@@ -1252,43 +1416,31 @@
             });
             layMauSelect.dispatchEvent(new Event('change'));
 
-
+            // CÀI ĐẶT FUZZY SEARCH (Địa chỉ, Danh mục bệnh, Nghề, Tộc...)
             const highlightText = (text, searchStr) => {
                 if(!searchStr || !text) return text;
                 const regex = new RegExp(`(${searchStr})`, "gi");
                 return text.replace(regex, "<span class='bg-yellow-200 font-medium'>$1</span>");
             };
 
-            // Tỉnh / TP
-            window.setupFuzzySearch('tinh_tp', 'tinhDropdown', 
-                () => danhMucHanhChinh, 
-                (item, search) => highlightText(item.tinh, search), 
+            window.setupFuzzySearch('tinh_tp', 'tinhDropdown', () => danhMucHanhChinh, (item, search) => highlightText(item.tinh, search), 
                 item => {
                     document.getElementById('tinh_tp').value = item.tinh;
                     const xaInput = document.getElementById('xa_phuong');
-                    xaInput.disabled = false;
-                    xaInput.value = '';
-                    xaInput.placeholder = `Chọn Xã thuộc ${item.tinh}...`;
+                    xaInput.disabled = false; xaInput.value = ''; xaInput.placeholder = `Chọn Xã thuộc ${item.tinh}...`;
                     document.getElementById('quan_huyen').value = '';
                     danhSachXaCuaTinh = danhMucHanhChinh.filter(x => x.tinh === item.tinh && x.xa);
-                },
-                item => item.tinh
+                }, item => item.tinh
             );
 
-            // Xã / Phường
-            window.setupFuzzySearch('xa_phuong', 'xaDropdown',
-                () => danhSachXaCuaTinh,
-                (item, search) => highlightText(item.xa, search),
+            window.setupFuzzySearch('xa_phuong', 'xaDropdown', () => danhSachXaCuaTinh, (item, search) => highlightText(item.xa, search),
                 item => {
                     document.getElementById('xa_phuong').value = item.xa;
                     document.getElementById('quan_huyen').value = item.xa;
-                },
-                item => item.xa
+                }, item => item.xa
             );
 
-            // Setup Bệnh
-            window.setupFuzzySearch('chan_doan_hien_thi', 'benhDropdown',
-                () => danhMucBenh,
+            window.setupFuzzySearch('chan_doan_hien_thi', 'benhDropdown', () => danhMucBenh,
                 (item, search) => {
                     const keys = Object.keys(item);
                     const nameKey = item.ten_benh_chung ? 'ten_benh_chung' : (keys.find(k => k.toLowerCase().includes('benh')) || keys[1] || keys[0]);
@@ -1341,9 +1493,7 @@
                 }
             );
                     
-            // Dân tộc 
-            window.setupFuzzySearch('dan_toc', 'danTocDropdown', 
-                () => danhMucDanToc, 
+            window.setupFuzzySearch('dan_toc', 'danTocDropdown', () => danhMucDanToc, 
                 (item, search) => {
                     const keys = Object.keys(item);
                     const val = item.ten_dan_toc || item[keys.find(k => k.toLowerCase().includes('dan'))] || item[keys[keys.length-1]] || '';
@@ -1359,9 +1509,7 @@
                 }
             );
 
-            // Nghề nghiệp
-            window.setupFuzzySearch('nghe_nghiep', 'ngheNghiepDropdown', 
-                () => danhMucNgheNghiep, 
+            window.setupFuzzySearch('nghe_nghiep', 'ngheNghiepDropdown', () => danhMucNgheNghiep, 
                 (item, search) => {
                     const keys = Object.keys(item);
                     const val = item.ten_nghe || item[keys.find(k => k.toLowerCase().includes('nghe'))] || item[keys[keys.length-1]] || '';
@@ -1376,6 +1524,7 @@
                     return item.ten_nghe || item[keys.find(k => k.toLowerCase().includes('nghe'))] || item[keys[keys.length-1]] || '';
                 }
             );
-        });
+        };
     </script>
 </body>
+</html>
