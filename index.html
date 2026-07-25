@@ -1,0 +1,1381 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hệ Thống Báo Cáo Bệnh Truyền Nhiễm</title>
+    <!-- Logo 🏥 SVG siêu nhẹ -->
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🏥</text></svg>">
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- SheetJS để xuất file Excel -->
+    <script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
+
+    <!-- Supabase JS -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+    <style>
+        .step-tab { transition: all 0.3s ease; border-bottom-width: 2px; border-color: transparent; }
+        .step-tab.active { color: #2563eb; border-color: #2563eb; font-weight: 600; }
+        .step-tab.inactive { color: #6b7280; cursor: pointer; }
+        .step-tab.inactive:hover { background-color: #f3f4f6; }
+        .hide-scrollbar::-webkit-scrollbar { display: none; }
+        .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+        
+        /* Hiệu ứng Dropdown Fuzzy Search */
+        .dropdown-list {
+            max-height: 250px;
+            overflow-y: auto;
+            position: absolute;
+            z-index: 50;
+            background: white;
+            border: 1px solid #e5e7eb;
+            width: 100%;
+            border-radius: 0.375rem;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            display: none;
+            margin-top: 2px;
+        }
+        .dropdown-item { padding: 8px 12px; cursor: pointer; border-bottom: 1px solid #f3f4f6; }
+        .dropdown-item:last-child { border-bottom: none; }
+        .dropdown-item:hover { background-color: #eff6ff; color: #1d4ed8; }
+
+        /* Animation cho modal */
+        @keyframes modalFadeIn {
+            from { opacity: 0; transform: scale(0.95) translateY(-20px); }
+            to { opacity: 1; transform: scale(1) translateY(0); }
+        }
+        .modal-enter { 
+            animation: modalFadeIn 0.2s ease-out forwards; 
+            opacity: 1 !important; 
+        }
+    </style>
+</head>
+<body class="bg-gray-100 text-gray-800 h-screen overflow-hidden flex flex-col">
+
+    <!-- MÀN HÌNH ĐĂNG NHẬP -->
+    <div id="login-screen" class="fixed inset-0 bg-gray-200 z-50 flex items-center justify-center">
+        <div class="bg-white p-8 rounded-lg shadow-xl w-[400px] max-w-[90%] border-t-4 border-blue-600">
+            <div class="text-center mb-6">
+                <div class="mx-auto bg-blue-100 w-16 h-16 rounded-full flex items-center justify-center mb-4">
+                    <svg class="w-8 h-8 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"></path></svg>
+                </div>
+                <h2 class="text-2xl font-bold text-gray-800">Hệ Thống Báo Cáo</h2>
+                <p class="text-blue-600 font-medium text-sm mt-1">BỆNH TRUYỀN NHIỄM - BVĐK CẦU NGANG</p>
+            </div>
+            
+            <form id="loginForm" class="space-y-5" onsubmit="event.preventDefault(); window.handleLogin();">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Tài khoản</label>
+                    <input type="text" id="loginUsername" required class="w-full border border-gray-300 rounded-md p-2.5 focus:ring-2 focus:ring-blue-500 outline-none transition">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Mật khẩu</label>
+                    <input type="password" id="loginPassword" required class="w-full border border-gray-300 rounded-md p-2.5 focus:ring-2 focus:ring-blue-500 outline-none transition">
+                </div>
+                <div id="loginError" class="text-red-600 bg-red-50 p-3 rounded-md text-sm hidden font-medium border border-red-100 break-words"></div>
+                <button type="submit" class="w-full bg-blue-600 text-white font-bold py-2.5 px-4 rounded-md hover:bg-blue-700 transition shadow-md mt-2">Đăng nhập vào hệ thống</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- GIAO DIỆN CHÍNH (Sau khi đăng nhập) -->
+    <div id="main-app" class="hidden flex flex-col h-full w-full max-w-[1200px] mx-auto bg-white shadow-xl relative">
+        
+        <!-- Header -->
+        <header class="bg-blue-700 text-white p-4 flex justify-between items-center shadow-md shrink-0 flex-wrap gap-2">
+            <div class="flex items-center space-x-3">
+                <div class="bg-white p-1.5 rounded-md hidden sm:block">
+                    <svg class="w-6 h-6 text-blue-700" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"></path></svg>
+                </div>
+                <div>
+                    <h1 class="text-xl font-bold">BVĐK Khu Vực Cầu Ngang</h1>
+                    <p id="userInfoDisplay" class="text-xs text-blue-200 mt-0.5">Đang tải thông tin...</p>
+                </div>
+            </div>
+            <div class="flex space-x-2">
+                <a href="danhsach.html" class="bg-green-600 hover:bg-green-700 text-white font-medium py-1.5 px-3 sm:px-4 rounded text-sm transition shadow-sm flex items-center">
+                    <svg class="w-4 h-4 mr-1 hidden sm:block" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"></path></svg>
+                    Xem danh sách
+                </a>
+                <button id="btnAdminPanel" onclick="window.toggleAdminPanel()" class="hidden bg-yellow-500 hover:bg-yellow-600 text-white font-medium py-1.5 px-3 sm:px-4 rounded text-sm transition shadow-sm">
+                    Quản lý hệ thống
+                </button>
+                <button onclick="window.handleLogout()" class="bg-blue-800 hover:bg-blue-900 text-white font-medium py-1.5 px-3 sm:px-4 rounded text-sm transition shadow-sm border border-blue-600">
+                    Đăng xuất
+                </button>
+            </div>
+        </header>
+
+        <!-- PANEL QUẢN TRỊ ADMIN -->
+        <div id="admin-panel" class="hidden flex-1 overflow-auto p-4 sm:p-6 bg-gray-50">
+            <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 space-y-4 sm:space-y-0">
+                <div>
+                    <h2 class="text-2xl font-bold text-gray-800">Quản lý Tài Khoản & Báo Cáo</h2>
+                    <p class="text-gray-500 text-sm mt-1">Admin có thể quản lý người dùng và xuất dữ liệu báo cáo.</p>
+                </div>
+                <div class="flex space-x-3">
+                    <button onclick="window.exportToExcel()" class="bg-green-600 hover:bg-green-700 text-white font-medium py-2 px-4 rounded transition flex items-center shadow-sm">
+                        <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+                        Xuất báo cáo Excel
+                    </button>
+                    <button onclick="window.openUserModal()" class="bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded transition shadow-sm flex items-center">
+                        <svg class="w-5 h-5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path></svg>
+                        Thêm nhân viên
+                    </button>
+                </div>
+            </div>
+            
+            <div class="bg-white rounded-lg shadow border border-gray-200 overflow-x-auto">
+                <table class="min-w-full divide-y divide-gray-200">
+                    <thead class="bg-gray-50">
+                        <tr>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Họ tên & Liên hệ</th>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tài khoản</th>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Khoa phòng</th>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Quyền</th>
+                            <th scope="col" class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Thao tác</th>
+                        </tr>
+                    </thead>
+                    <tbody id="userTableBody" class="bg-white divide-y divide-gray-200">
+                        <!-- Danh sách nhân viên render ở đây -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- FORM NHẬP LIỆU BÁO CÁO -->
+        <div id="form-container" class="flex flex-col h-full overflow-hidden">
+            <!-- Thanh Tabs -->
+            <div class="flex border-b border-gray-200 shrink-0 bg-white hide-scrollbar overflow-x-auto shadow-sm z-10 relative">
+                <div class="flex px-2 pt-2">
+                    <div id="tab1" class="step-tab active px-4 py-3 text-sm whitespace-nowrap" onclick="window.goToStep(1)">1. Hành chính</div>
+                    <div id="tab2" class="step-tab inactive px-4 py-3 text-sm whitespace-nowrap" onclick="window.goToStep(2)">2. Địa chỉ</div>
+                    <div id="tab3" class="step-tab inactive px-4 py-3 text-sm whitespace-nowrap" onclick="window.goToStep(3)">3. Chẩn đoán</div>
+                    <div id="tab4" class="step-tab inactive px-4 py-3 text-sm whitespace-nowrap" onclick="window.goToStep(4)">4. Xét nghiệm</div>
+                    <div id="tab5" class="step-tab inactive px-4 py-3 text-sm whitespace-nowrap" onclick="window.goToStep(5)">5. Báo cáo</div>
+                </div>
+            </div>
+
+            <!-- Nội dung Tabs -->
+            <div class="flex-1 overflow-y-auto p-4 sm:p-6 bg-white" id="mainScrollArea">
+                <form id="reportForm">
+                    
+                    <!-- Bước 1 -->
+                    <div id="step1" class="step-content block animate-[modalFadeIn_0.2s_ease-out]">
+                        <h2 class="text-xl font-bold text-blue-800 mb-4 pb-2 border-b">1. Thông Tin Hành Chính</h2>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Khoa/Phòng nhập liệu <span class="text-red-500">*</span></label>
+                                <input type="text" id="khoa_phong" class="w-full border border-gray-300 rounded p-2 bg-gray-100 text-gray-500 font-medium cursor-not-allowed" readonly>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Họ và tên bệnh nhân (2) <span class="text-red-500">*</span></label>
+                                <input type="text" id="ho_va_ten" required oninput="this.value = window.toTitleCase(this.value)" placeholder="Nhập họ tên (Tự động viết hoa)" class="w-full border border-gray-300 rounded p-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">CMND/CCCD (3) <span id="cmnd_asterisk" class="text-red-500 hidden">*</span></label>
+                                <input type="text" id="cmnd" placeholder="Số định danh cá nhân" class="w-full border border-gray-300 rounded p-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Ngày sinh (4) <span class="text-red-500">*</span></label>
+                                <input type="date" id="ngay_sinh" required class="w-full border border-gray-300 rounded p-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Giới tính (5) <span class="text-red-500">*</span></label>
+                                <select id="gioi_tinh" required class="w-full border border-gray-300 rounded p-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none">
+                                    <option value="">-- Chọn giới tính --</option>
+                                    <option value="Nam">Nam</option>
+                                    <option value="Nữ">Nữ</option>
+                                </select>
+                            </div>
+                            
+                            <!-- Dân tộc Fuzzy với Icon Dropdown -->
+                            <div class="relative">
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Dân tộc (6)</label>
+                                <div class="relative cursor-pointer">
+                                    <input type="text" id="dan_toc" autocomplete="off" placeholder="Gõ để tìm hoặc click để chọn..." oninput="this.value = window.toTitleCase(this.value)" class="w-full border border-gray-300 rounded p-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none cursor-pointer pr-8">
+                                    <div class="absolute inset-y-0 right-0 flex items-center pr-2 pointer-events-none">
+                                        <svg class="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                                    </div>
+                                </div>
+                                <div id="danTocDropdown" class="dropdown-list"></div>
+                            </div>
+
+                            <!-- Nghề nghiệp Fuzzy với Icon Dropdown -->
+                            <div class="relative md:col-span-2">
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Nghề nghiệp (7)</label>
+                                <div class="relative cursor-pointer">
+                                    <input type="text" id="nghe_nghiep" autocomplete="off" placeholder="Gõ tìm hoặc click chọn nghề nghiệp..." class="w-full border border-gray-300 rounded p-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none cursor-pointer pr-8">
+                                    <div class="absolute inset-y-0 right-0 flex items-center pr-2 pointer-events-none">
+                                        <svg class="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                                    </div>
+                                </div>
+                                <div id="ngheNghiepDropdown" class="dropdown-list"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Bước 2 -->
+                    <div id="step2" class="step-content hidden animate-[modalFadeIn_0.2s_ease-out]">
+                        <h2 class="text-xl font-bold text-blue-800 mb-4 pb-2 border-b">2. Địa Chỉ & Nơi Làm Việc</h2>
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-5 mb-5">
+                            
+                            <div class="relative">
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Tỉnh/TP (8) <span class="text-red-500">*</span></label>
+                                <div class="relative cursor-pointer">
+                                    <input type="text" id="tinh_tp" required autocomplete="off" placeholder="Chọn Tỉnh/TP..." class="w-full border border-gray-300 rounded p-2 focus:ring-2 focus:ring-blue-500 outline-none cursor-pointer pr-8">
+                                    <div class="absolute inset-y-0 right-0 flex items-center pr-2 pointer-events-none">
+                                        <svg class="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                                    </div>
+                                </div>
+                                <div id="tinhDropdown" class="dropdown-list"></div>
+                            </div>
+
+                            <div class="relative">
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Xã/Phường (9) <span class="text-red-500">*</span></label>
+                                <div class="relative cursor-pointer">
+                                    <input type="text" id="xa_phuong" required autocomplete="off" placeholder="Chọn Tỉnh trước..." class="w-full border border-gray-300 rounded p-2 focus:ring-2 focus:ring-blue-500 outline-none cursor-pointer pr-8 disabled:bg-gray-100 disabled:cursor-not-allowed" disabled>
+                                    <div class="absolute inset-y-0 right-0 flex items-center pr-2 pointer-events-none">
+                                        <svg class="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                                    </div>
+                                </div>
+                                <div id="xaDropdown" class="dropdown-list"></div>
+                            </div>
+                            
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Quận/Huyện (9) <span class="text-red-500">*</span></label>
+                                <input type="text" id="quan_huyen" required readonly placeholder="Tự động điền theo Xã" class="w-full border border-gray-300 bg-gray-100 rounded p-2 text-gray-600 cursor-not-allowed">
+                            </div>
+                        </div>
+                        <div class="grid grid-cols-1 gap-5">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Địa chỉ cụ thể (nơi ở hiện nay) (15) <span class="text-red-500">*</span></label>
+                                <input type="text" id="dia_chi_chi_tiet" required placeholder="Số nhà, đường, khóm..." class="w-full border border-gray-300 rounded p-2 focus:ring-2 focus:ring-blue-500 outline-none">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Nơi làm việc / Học tập (16)</label>
+                                <input type="text" id="noi_lam_viec" placeholder="Tên công ty, trường học..." class="w-full border border-gray-300 rounded p-2 focus:ring-2 focus:ring-blue-500 outline-none">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Điện thoại liên hệ (13)</label>
+                                <input type="tel" id="dien_thoai" placeholder="Nhập số điện thoại bệnh nhân" class="w-full border border-gray-300 rounded p-2 focus:ring-2 focus:ring-blue-500 outline-none">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Bước 3 -->
+                    <div id="step3" class="step-content hidden animate-[modalFadeIn_0.2s_ease-out]">
+                        <h2 class="text-xl font-bold text-blue-800 mb-4 pb-2 border-b">3. Chẩn Đoán Lâm Sàng</h2>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+                            
+                            <!-- Bệnh Truyền Nhiễm -->
+                            <div class="relative">
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Chẩn đoán chính (10) <span class="text-red-500">*</span></label>
+                                <div class="relative cursor-pointer">
+                                    <input type="text" id="chan_doan_hien_thi" required autocomplete="off" placeholder="Chọn bệnh (VD: Sốt xuất huyết)..." class="w-full border border-gray-300 rounded p-2 focus:ring-2 focus:ring-blue-500 outline-none cursor-pointer pr-8">
+                                    <div class="absolute inset-y-0 right-0 flex items-center pr-2 pointer-events-none">
+                                        <svg class="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                                    </div>
+                                </div>
+                                <div id="benhDropdown" class="dropdown-list"></div>
+                                <input type="hidden" id="chan_doan_chinh"> <!-- Mã ICD ẩn -->
+                            </div>
+                            
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Cấp độ bệnh / Phân loại thể bệnh</label>
+                                <input type="text" id="cap_do_benh" list="danhSachCapDo" autocomplete="off" placeholder="-- Tự động lọc hoặc gõ tay --" class="w-full border border-gray-300 rounded p-2 focus:ring-2 focus:ring-blue-500 outline-none transition">
+                                <datalist id="danhSachCapDo"></datalist>
+                            </div>
+
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Phân loại chẩn đoán (11) <span class="text-red-500">*</span></label>
+                                <select id="phan_loai_chan_doan" required class="w-full border border-gray-300 rounded p-2 focus:ring-2 focus:ring-blue-500 outline-none">
+                                    <option value="">-- Chọn phân loại --</option>
+                                    <option value="Nghi ngờ (lâm sàng)">1. Nghi ngờ (lâm sàng)</option>
+                                    <option value="Có thể">2. Có thể</option>
+                                    <option value="Xác định phòng xét nghiệm">3. Xác định phòng xét nghiệm</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Tình trạng hiện tại (12) <span class="text-red-500">*</span></label>
+                                <select id="tinh_trang_hien_tai" required class="w-full border border-gray-300 rounded p-2 focus:ring-2 focus:ring-blue-500 outline-none">
+                                    <option value="">-- Chọn tình trạng --</option>
+                                    <option value="Điều trị ngoại trú">1. Điều trị ngoại trú</option>
+                                    <option value="Điều trị nội trú">2. Điều trị nội trú</option>
+                                    <option value="Ra viện">3. Ra viện</option>
+                                    <option value="Chuyển viện">4. Chuyển viện</option>
+                                    <option value="Tử vong">5. Tử vong</option>
+                                    <option value="Tình trạng khác">6. Tình trạng khác</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Điều trị (tiêm, uống vacxin) (18)</label>
+                                <select id="dieu_tri_vaccine" class="w-full border border-gray-300 rounded p-2 focus:ring-2 focus:ring-blue-500 outline-none">
+                                    <option value="">-- Chọn --</option>
+                                    <option value="Có">1. Có</option>
+                                    <option value="Không">2. Không</option>
+                                    <option value="Không rõ">3. Không rõ</option>
+                                </select>
+                            </div>
+                            <div id="so_lan_tiem_container">
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Số lần tiêm, uống (19) <span id="so_lan_tiem_asterisk" class="text-red-500">*</span></label>
+                                <input type="number" id="so_lan_tiem" min="0" placeholder="Chỉ nhập số" class="w-full border border-gray-300 rounded p-2 focus:ring-2 focus:ring-blue-500 outline-none">
+                            </div>
+                            
+                            <div class="md:col-span-2 grid grid-cols-1 md:grid-cols-3 gap-4 bg-gray-50 p-4 rounded-md border border-gray-200 mt-2">
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-1">Chẩn đoán ra viện</label>
+                                    <input type="text" id="chan_doan_ra_vien" class="w-full border border-gray-300 rounded p-2 focus:border-blue-500 outline-none transition-colors">
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-1">Đơn vị chuyển tới</label>
+                                    <input type="text" id="don_vi_chuyen_toi" class="w-full border border-gray-300 rounded p-2 focus:border-blue-500 outline-none">
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-1">Tình trạng khác</label>
+                                    <input type="text" id="tinh_trang_khac" class="w-full border border-gray-300 rounded p-2 focus:border-blue-500 outline-none">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Bước 4 -->
+                    <div id="step4" class="step-content hidden animate-[modalFadeIn_0.2s_ease-out]">
+                        <h2 class="text-xl font-bold text-blue-800 mb-4 pb-2 border-b">4. Xét Nghiệm & Thời Gian</h2>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Lấy mẫu xét nghiệm (20)</label>
+                                <select id="lay_mau_xn" class="w-full border border-gray-300 rounded p-2 focus:ring-2 focus:ring-blue-500 outline-none">
+                                    <option value="">-- Chọn --</option>
+                                    <option value="Có">1. Có</option>
+                                    <option value="Không">2. Không</option>
+                                </select>
+                            </div>
+                            <div id="container_loai_xn">
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Loại xét nghiệm (21)</label>
+                                <select id="loai_xn" class="w-full border border-gray-300 rounded p-2 focus:ring-2 focus:ring-blue-500 outline-none">
+                                    <option value="">-- Chọn --</option>
+                                    <option value="Test nhanh">1. Test nhanh</option>
+                                    <option value="Mac-elisa">2. Mac-elisa</option>
+                                    <option value="PCR">3. PCR</option>
+                                    <option value="Loại khác">4. Loại khác</option>
+                                </select>
+                            </div>
+                            <div id="container_ket_qua_xn">
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Kết quả xét nghiệm (22)</label>
+                                <select id="ket_qua_xn" class="w-full border border-gray-300 rounded p-2 focus:ring-2 focus:ring-blue-500 outline-none">
+                                    <option value="">-- Chọn --</option>
+                                    <option value="Dương tính">1. Dương tính</option>
+                                    <option value="Âm tính">2. Âm tính</option>
+                                    <option value="Nghi ngờ">3. Nghi ngờ</option>
+                                    <option value="Chưa có kết quả">4. Chưa có kết quả</option>
+                                </select>
+                            </div>
+                            <div id="container_ten_xn">
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Tên xét nghiệm cụ thể</label>
+                                <input type="text" id="ten_xn_cu_the" class="w-full border border-gray-300 rounded p-2 focus:ring-2 focus:ring-blue-500 outline-none">
+                            </div>
+
+                            <hr class="md:col-span-2 my-2 border-gray-200">
+                            
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Ngày khởi phát (24) <span class="text-red-500">*</span></label>
+                                <input type="date" id="ngay_khoi_phat" required class="w-full border border-gray-300 rounded p-2 focus:ring-2 focus:ring-blue-500 outline-none">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Ngày nhập viện/Ngày khám (25) <span class="text-red-500">*</span></label>
+                                <input type="date" id="ngay_nhap_vien" required class="w-full border border-gray-300 rounded p-2 focus:ring-2 focus:ring-blue-500 outline-none">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Ngày ra viện/chuyển viện/tử vong (26)</label>
+                                <input type="date" id="ngay_ra_vien" class="w-full border border-gray-300 rounded p-2 focus:ring-2 focus:ring-blue-500 outline-none">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Bước 5 -->
+                    <div id="step5" class="step-content hidden animate-[modalFadeIn_0.2s_ease-out]">
+                        <h2 class="text-xl font-bold text-blue-800 mb-4 pb-2 border-b">5. Cơ Sở & Người Báo Cáo</h2>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+                            
+                            <!-- Mã Cơ sở điều trị được lưu ngầm vào form, xuất ra excel -->
+                            <input type="hidden" id="co_so_dieu_tri" value="81711_BV">
+                            <input type="hidden" id="ma_so_ql" value="">
+                            <input type="hidden" id="truong_32" value="">
+                            
+                            <div class="md:col-span-2">
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Cơ sở điều trị (14)</label>
+                                <input type="text" value="Bệnh viện Đa khoa khu vực Cầu Ngang" class="w-full border border-gray-300 bg-gray-100 rounded p-2 text-gray-600 font-medium cursor-not-allowed" readonly>
+                            </div>
+                            
+                            <div class="md:col-span-2">
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Hình thức điều trị (30)</label>
+                                <select id="hinh_thuc_dieu_tri" class="w-full md:w-1/2 border border-gray-300 rounded p-2 focus:ring-2 focus:ring-blue-500 outline-none">
+                                    <option value="">-- Chọn hình thức --</option>
+                                    <option value="Trạm y tế">1. Trạm y tế</option>
+                                    <option value="Tại nhà">2. Tại nhà</option>
+                                    <option value="Y tế cơ quan">3. Y tế cơ quan</option>
+                                    <option value="Khác">4. Khác</option>
+                                </select>
+                            </div>
+                            
+                            <div class="md:col-span-2 mt-4">
+                                <h3 class="font-bold text-gray-800 border-b-2 border-gray-200 pb-2 flex items-center">
+                                    <svg class="w-5 h-5 mr-2 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path></svg>
+                                    Thông tin người tạo báo cáo
+                                </h3>
+                                <p class="text-sm text-gray-500 mt-1 mb-4 italic">* Hệ thống tự động lấy thông tin từ tài khoản đăng nhập hiện tại.</p>
+                            </div>
+                            
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Họ tên người báo cáo (27)</label>
+                                <input type="text" id="nguoi_bao_cao_ten" class="w-full border border-gray-300 bg-gray-100 text-gray-500 rounded p-2 cursor-not-allowed" readonly>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Số điện thoại (28)</label>
+                                <input type="text" id="nguoi_bao_cao_sdt" class="w-full border border-gray-300 bg-gray-100 text-gray-500 rounded p-2 cursor-not-allowed" readonly>
+                            </div>
+                            <div class="md:col-span-2">
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Email (29)</label>
+                                <input type="email" id="nguoi_bao_cao_email" class="w-full border border-gray-300 bg-gray-100 text-gray-500 rounded p-2 cursor-not-allowed" readonly>
+                            </div>
+                        </div>
+                    </div>
+                </form>
+            </div>
+
+            <!-- Footer Buttons -->
+            <div class="bg-gray-50 border-t border-gray-200 p-4 flex justify-between shrink-0 items-center">
+                <button type="button" id="btnPrev" onclick="window.prevStep()" class="hidden bg-white border border-gray-300 hover:bg-gray-100 text-gray-700 font-medium py-2 px-4 rounded shadow-sm transition flex items-center">
+                    <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path></svg>
+                    Quay lại
+                </button>
+                <div class="flex-1"></div>
+                <button type="button" id="btnNext" onclick="window.nextStep()" class="bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-6 rounded shadow-sm transition flex items-center">
+                    Tiếp theo
+                    <svg class="w-4 h-4 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"></path></svg>
+                </button>
+                <button type="button" id="btnSubmit" onclick="window.submitForm()" class="hidden bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-8 rounded shadow-md transition flex items-center transform hover:scale-105">
+                    <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
+                    LƯU DỮ LIỆU
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL THÊM/SỬA USER CHO ADMIN -->
+    <div id="userModal" class="fixed inset-0 hidden z-50 flex items-center justify-center">
+        <!-- Nền mờ -->
+        <div class="absolute inset-0 bg-black bg-opacity-50" onclick="window.closeUserModal()"></div>
+        
+        <!-- Nội dung modal -->
+        <div class="bg-white rounded-lg shadow-2xl w-[500px] max-w-[95%] m-4 relative z-10 modal-enter flex flex-col max-h-[90vh]">
+            <div class="flex justify-between items-center p-5 border-b border-gray-200">
+                <h3 class="text-xl font-bold text-gray-800 flex items-center" id="userModalTitle">
+                    <svg class="w-5 h-5 mr-2 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z"></path></svg>
+                    Thêm Nhân Viên
+                </h3>
+                <button onclick="window.closeUserModal()" class="text-gray-400 hover:text-red-500 transition focus:outline-none">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                </button>
+            </div>
+            
+            <div class="p-5 overflow-y-auto">
+                <form id="userForm" class="space-y-4">
+                    <input type="hidden" id="userId">
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div class="sm:col-span-2">
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Họ và tên (Hiển thị) <span class="text-red-500">*</span></label>
+                            <input type="text" id="userTen" required placeholder="VD: BS. Nguyễn Văn A" class="w-full border border-gray-300 rounded-md p-2.5 focus:ring-2 focus:ring-blue-500 outline-none">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Tài khoản đăng nhập <span class="text-red-500">*</span></label>
+                            <input type="text" id="userAcc" required placeholder="Không dấu, viết liền" class="w-full border border-gray-300 rounded-md p-2.5 focus:ring-2 focus:ring-blue-500 outline-none">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Mật khẩu <span class="text-red-500">*</span></label>
+                            <input type="text" id="userPass" required placeholder="Nhập mật khẩu" class="w-full border border-gray-300 rounded-md p-2.5 focus:ring-2 focus:ring-blue-500 outline-none">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Số điện thoại liên hệ</label>
+                            <input type="tel" id="userPhone" placeholder="In lên báo cáo" class="w-full border border-gray-300 rounded-md p-2.5 focus:ring-2 focus:ring-blue-500 outline-none">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Email</label>
+                            <input type="email" id="userEmail" placeholder="In lên báo cáo" class="w-full border border-gray-300 rounded-md p-2.5 focus:ring-2 focus:ring-blue-500 outline-none">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Khoa / Phòng trực thuộc <span class="text-red-500">*</span></label>
+                            <input type="text" id="userKhoa" required placeholder="VD: Khoa Nhi" class="w-full border border-gray-300 rounded-md p-2.5 focus:ring-2 focus:ring-blue-500 outline-none">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Quyền hệ thống <span class="text-red-500">*</span></label>
+                            <select id="userRole" class="w-full border border-gray-300 rounded-md p-2.5 focus:ring-2 focus:ring-blue-500 outline-none bg-gray-50">
+                                <option value="user">Nhân viên (Chỉ nhập liệu)</option>
+                                <option value="admin">Admin (Quản trị & Xuất BC)</option>
+                            </select>
+                        </div>
+                    </div>
+                </form>
+            </div>
+            
+            <div class="p-5 border-t border-gray-200 flex justify-end space-x-3 bg-gray-50 rounded-b-lg">
+                <button type="button" onclick="window.closeUserModal()" class="bg-white border border-gray-300 hover:bg-gray-100 text-gray-700 font-medium px-5 py-2.5 rounded-md transition">Hủy bỏ</button>
+                <button type="button" onclick="window.saveUser()" class="bg-blue-600 hover:bg-blue-700 text-white font-medium px-6 py-2.5 rounded-md shadow-md transition flex items-center">
+                    <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4"></path></svg>
+                    Lưu thông tin
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Hộp thoại Tùy chỉnh thay thế confirm() -->
+    <div id="customConfirm" class="fixed inset-0 hidden z-[9999] flex items-center justify-center">
+        <div class="absolute inset-0 bg-black bg-opacity-50"></div>
+        <div class="bg-white rounded-lg shadow-2xl p-6 w-[400px] max-w-[90%] relative z-10 modal-enter text-center">
+            <div class="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-red-100 mb-4">
+                <svg class="h-6 w-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
+            </div>
+            <h3 class="text-lg font-medium text-gray-900 mb-2" id="confirmTitle">Xác nhận</h3>
+            <p class="text-sm text-gray-500 mb-6" id="confirmMessage">Bạn có chắc chắn muốn thực hiện hành động này?</p>
+            <div class="flex justify-center space-x-4">
+                <button id="btnConfirmCancel" class="bg-white border border-gray-300 hover:bg-gray-100 text-gray-700 font-medium py-2 px-4 rounded shadow-sm transition">Hủy</button>
+                <button id="btnConfirmOk" class="bg-red-600 hover:bg-red-700 text-white font-medium py-2 px-4 rounded shadow-sm transition">Đồng ý</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Thông Báo -->
+    <div id="toast" class="fixed top-5 right-5 text-white font-medium px-6 py-3 rounded-md shadow-lg transition-all duration-300 transform translate-x-full opacity-0 hidden z-50 flex items-center">
+        <span id="toastIcon" class="mr-2"></span>
+        <span id="toastMsg"></span>
+    </div>
+
+    <!-- Nhúng file cấu hình Supabase -->
+    <script src="config.js"></script>
+
+    <!-- LOGIC JAVASCRIPT -->
+    <script>
+        // Khởi tạo Supabase client sử dụng biến cấu hình từ config.js
+        const supabaseClient = window.supabase.createClient(CONFIG.SUPABASE_URL, CONFIG.SUPABASE_KEY);
+
+        // Biến toàn cục
+        let currentUser = null;
+        let currentStep = 1;
+        const totalSteps = 5;
+        
+        let danhMucHanhChinh = [];
+        let danhMucDanToc = [];
+        let danhMucNgheNghiep = [];
+        let danhMucBenh = [];
+        let danhSachXaCuaTinh = [];
+
+        const formContainer = document.getElementById('form-container');
+        const adminPanel = document.getElementById('admin-panel');
+        const btnAdminPanel = document.getElementById('btnAdminPanel');
+
+        // Hàm Hiển thị Toast thông báo
+        window.showToast = function(message, type = 'success') {
+            const toast = document.getElementById('toast');
+            const msg = document.getElementById('toastMsg');
+            const icon = document.getElementById('toastIcon');
+            
+            msg.textContent = message;
+            toast.className = `fixed top-5 right-5 font-medium px-6 py-3 rounded-md shadow-lg transition-all duration-300 z-[9999] flex items-center ${type === 'success' ? 'bg-green-600' : 'bg-red-600'} text-white`;
+            
+            icon.innerHTML = type === 'success' 
+                ? '<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>'
+                : '<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>';
+
+            toast.classList.remove('hidden');
+            setTimeout(() => { toast.classList.remove('translate-x-full', 'opacity-0'); }, 10);
+            
+            setTimeout(() => {
+                toast.classList.add('translate-x-full', 'opacity-0');
+                setTimeout(() => { toast.classList.add('hidden'); }, 300);
+            }, 3500);
+        };
+
+        // Hàm customConfirm thay thế cho confirm()
+        window.customConfirm = function(title, message) {
+            return new Promise((resolve) => {
+                const modal = document.getElementById('customConfirm');
+                document.getElementById('confirmTitle').innerText = title;
+                document.getElementById('confirmMessage').innerText = message;
+                modal.classList.remove('hidden');
+
+                document.getElementById('btnConfirmOk').onclick = function() {
+                    modal.classList.add('hidden');
+                    resolve(true);
+                };
+                
+                document.getElementById('btnConfirmCancel').onclick = function() {
+                    modal.classList.add('hidden');
+                    resolve(false);
+                };
+            });
+        };
+
+        // Tự động kiểm tra trạng thái đăng nhập
+        window.checkSession = function() {
+            const savedSession = sessionStorage.getItem('userSession');
+            if (savedSession) {
+                try {
+                    currentUser = JSON.parse(savedSession);
+                    document.getElementById('login-screen').classList.add('hidden');
+                    document.getElementById('main-app').classList.remove('hidden');
+                    
+                    document.getElementById('userInfoDisplay').innerHTML = `
+                        <span class="font-semibold text-white">${currentUser.ten}</span> 
+                        <span class="mx-1">•</span> ${currentUser.khoa}
+                    `;
+                    
+                    if (currentUser.quyen === 'admin') {
+                        btnAdminPanel.classList.remove('hidden');
+                    } else {
+                        btnAdminPanel.classList.add('hidden');
+                        adminPanel.classList.add('hidden');
+                        formContainer.classList.remove('hidden');
+                    }
+
+                    document.getElementById('khoa_phong').value = currentUser.khoa || '';
+                    document.getElementById('nguoi_bao_cao_ten').value = currentUser.ten || '';
+                    document.getElementById('nguoi_bao_cao_sdt').value = currentUser.sdt || '';
+                    document.getElementById('nguoi_bao_cao_email').value = currentUser.email || '';
+
+                    window.loadMasterData();
+                } catch(e) {
+                    sessionStorage.removeItem('userSession');
+                }
+            }
+        };
+
+        // Hàm Đăng Nhập
+        window.handleLogin = async function() {
+            const tk = document.getElementById('loginUsername').value;
+            const pass = document.getElementById('loginPassword').value;
+            const errBox = document.getElementById('loginError');
+            
+            errBox.classList.add('hidden');
+            errBox.innerHTML = 'Đang xử lý đăng nhập...';
+            errBox.classList.remove('text-red-600', 'bg-red-50', 'border-red-100');
+            errBox.classList.add('text-blue-600', 'bg-blue-50', 'border-blue-100');
+            errBox.classList.remove('hidden');
+            
+            try {
+                // Truy vấn bảng nhanvien
+                const { data, error } = await supabaseClient.from('nhanvien')
+                    .select('*')
+                    .eq('tai_khoan', tk)
+                    .eq('pass', pass)
+                    .single();
+
+                errBox.classList.remove('text-blue-600', 'bg-blue-50', 'border-blue-100');
+                errBox.classList.add('text-red-600', 'bg-red-50', 'border-red-100');
+
+                if (error) {
+                    errBox.innerHTML = `Lỗi kết nối: ${error.message}`;
+                    return;
+                }
+
+                if (!data) {
+                    errBox.innerHTML = "Sai tài khoản hoặc mật khẩu!";
+                    return;
+                }
+
+                // Xử lý khi đăng nhập thành công
+                currentUser = data;
+                sessionStorage.setItem('userSession', JSON.stringify(currentUser));
+                window.checkSession();
+                window.showToast("Đăng nhập hệ thống thành công!");
+                
+            } catch (ex) {
+                errBox.classList.remove('text-blue-600', 'bg-blue-50', 'border-blue-100');
+                errBox.classList.add('text-red-600', 'bg-red-50', 'border-red-100');
+                errBox.innerHTML = "Lỗi mạng nghiêm trọng: " + ex.message;
+            }
+        };
+
+        window.handleLogout = function() {
+            currentUser = null;
+            sessionStorage.removeItem('userSession');
+            document.getElementById('login-screen').classList.remove('hidden');
+            document.getElementById('main-app').classList.add('hidden');
+            document.getElementById('loginPassword').value = '';
+            document.getElementById('loginError').classList.add('hidden');
+            window.goToStep(1);
+            if(!adminPanel.classList.contains('hidden')) window.toggleAdminPanel();
+        };
+
+        window.toggleAdminPanel = function() {
+            if(currentUser.quyen !== 'admin') {
+                window.showToast("Bạn không có quyền truy cập chức năng này!", "error");
+                return;
+            }
+            
+            if(adminPanel.classList.contains('hidden')) {
+                adminPanel.classList.remove('hidden');
+                formContainer.classList.add('hidden');
+                btnAdminPanel.innerHTML = "Quay lại nhập liệu";
+                btnAdminPanel.classList.replace('bg-yellow-500', 'bg-gray-500');
+                btnAdminPanel.classList.replace('hover:bg-yellow-600', 'hover:bg-gray-600');
+                window.loadUsers();
+            } else {
+                adminPanel.classList.add('hidden');
+                formContainer.classList.remove('hidden');
+                btnAdminPanel.innerHTML = "Quản lý hệ thống";
+                btnAdminPanel.classList.replace('bg-gray-500', 'bg-yellow-500');
+                btnAdminPanel.classList.replace('hover:bg-gray-600', 'hover:bg-yellow-600');
+            }
+        };
+
+        window.loadUsers = async function() {
+            const tbody = document.getElementById('userTableBody');
+            tbody.innerHTML = '<tr><td colspan="5" class="text-center py-4 text-gray-500">Đang tải dữ liệu...</td></tr>';
+            
+            const { data, error } = await supabaseClient.from('nhanvien').select('*').order('id', { ascending: false });
+            if(error) {
+                window.showToast("Không thể tải danh sách: " + error.message, 'error');
+                return;
+            }
+            
+            tbody.innerHTML = '';
+            data.forEach(u => {
+                const isAdmin = u.quyen === 'admin';
+                const tr = document.createElement('tr');
+                tr.className = "hover:bg-gray-50 transition";
+                tr.innerHTML = `
+                    <td class="px-6 py-4 whitespace-nowrap">
+                        <div class="text-sm font-medium text-gray-900">${u.ten}</div>
+                        <div class="text-xs text-gray-500">${u.sdt || 'Chưa có SĐT'} • ${u.email || 'Chưa có Email'}</div>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600 font-mono">${u.tai_khoan}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">${u.khoa || 'Chưa cập nhật'}</td>
+                    <td class="px-6 py-4 whitespace-nowrap">
+                        <span class="px-2.5 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${isAdmin ? 'bg-red-100 text-red-800' : 'bg-green-100 text-green-800'}">
+                            ${isAdmin ? 'Quản trị viên' : 'Nhân viên'}
+                        </span>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                        <button onclick="window.editUser(${u.id})" class="text-indigo-600 hover:text-indigo-900 mr-3 px-2 py-1 rounded hover:bg-indigo-50 transition">Sửa</button>
+                        ${currentUser.id !== u.id ? `<button onclick="window.deleteUser(${u.id})" class="text-red-600 hover:text-red-900 px-2 py-1 rounded hover:bg-red-50 transition">Xóa</button>` : `<span class="text-gray-400 italic text-xs">Đang dùng</span>`}
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+        };
+
+        window.openUserModal = function(isEdit = false) {
+            const titleEl = document.getElementById('userModalTitle');
+            if(isEdit) {
+                titleEl.innerHTML = '<svg class="w-5 h-5 mr-2 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path></svg> Cập nhật Nhân Viên';
+            } else {
+                titleEl.innerHTML = '<svg class="w-5 h-5 mr-2 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z"></path></svg> Thêm Nhân Viên Mới';
+                document.getElementById('userForm').reset();
+                document.getElementById('userId').value = '';
+            }
+            document.getElementById('userModal').classList.remove('hidden');
+        };
+        
+        window.closeUserModal = function() { 
+            document.getElementById('userModal').classList.add('hidden'); 
+        };
+
+        window.editUser = async function(id) {
+            window.showToast("Đang tải dữ liệu...", "success");
+            const { data, error } = await supabaseClient.from('nhanvien').select('*').eq('id', id).single();
+            if(data) {
+                document.getElementById('userId').value = data.id;
+                document.getElementById('userTen').value = data.ten;
+                document.getElementById('userAcc').value = data.tai_khoan;
+                document.getElementById('userPass').value = data.pass;
+                document.getElementById('userPhone').value = data.sdt || '';
+                document.getElementById('userEmail').value = data.email || '';
+                document.getElementById('userKhoa').value = data.khoa || '';
+                document.getElementById('userRole').value = data.quyen;
+                window.openUserModal(true);
+            } else {
+                window.showToast("Lỗi: Không tìm thấy nhân viên!", "error");
+            }
+        };
+
+        window.saveUser = async function() {
+            const form = document.getElementById('userForm');
+            if(!form.checkValidity()) {
+                form.reportValidity();
+                return;
+            }
+
+            const id = document.getElementById('userId').value;
+            const payload = {
+                ten: document.getElementById('userTen').value,
+                tai_khoan: document.getElementById('userAcc').value,
+                pass: document.getElementById('userPass').value,
+                sdt: document.getElementById('userPhone').value,
+                email: document.getElementById('userEmail').value,
+                khoa: document.getElementById('userKhoa').value,
+                quyen: document.getElementById('userRole').value,
+            };
+
+            let res;
+            if (id) { res = await supabaseClient.from('nhanvien').update(payload).eq('id', id); } 
+            else { res = await supabaseClient.from('nhanvien').insert([payload]); }
+
+            if(res.error) window.showToast("Lỗi: Tài khoản có thể đã bị trùng!", 'error');
+            else { 
+                window.showToast(id ? "Đã cập nhật thành công!" : "Đã tạo tài khoản mới!"); 
+                window.closeUserModal(); 
+                window.loadUsers(); 
+            }
+        };
+
+        window.deleteUser = async function(id) {
+            const isConfirm = await window.customConfirm("Xóa nhân viên", "Cảnh báo: Hành động này không thể hoàn tác!\nBạn có chắc chắn muốn xóa nhân viên này khỏi hệ thống?");
+            if(isConfirm) {
+                const {error} = await supabaseClient.from('nhanvien').delete().eq('id', id);
+                if(error) window.showToast("Lỗi xóa: " + error.message, 'error');
+                else { window.showToast("Đã xóa thành công!"); window.loadUsers(); }
+            }
+        };
+
+        // Vượt giới hạn 1000 dòng tải dữ liệu của Supabase
+        window.fetchAllSupabaseData = async function(tableName) {
+            let allData = [];
+            let from = 0;
+            const step = 999; 
+            let keepFetching = true;
+
+            try {
+                while (keepFetching) {
+                    const { data, error } = await supabaseClient.from(tableName).select('*').range(from, from + step);
+                    if (error) {
+                        console.warn(`Lỗi tải [${tableName}]:`, error.message);
+                        return []; 
+                    }
+                    if (!data || data.length === 0) {
+                        keepFetching = false;
+                    } else {
+                        allData = allData.concat(data);
+                        if (data.length <= step) keepFetching = false;
+                        else from += (step + 1);
+                    }
+                }
+                return allData;
+            } catch (err) {
+                console.error("Lỗi Fetch Data:", err);
+                return [];
+            }
+        };
+
+        window.loadMasterData = async function() {
+            try {
+                // Tải Hành chính (Tự quét tên bảng có hay không gạch dưới)
+                let hc = await window.fetchAllSupabaseData('dm_hanhchinh');
+                if(!hc || hc.length === 0) hc = await window.fetchAllSupabaseData('dm_hanh_chinh');
+                if(hc && hc.length > 0) {
+                    const cols = Object.keys(hc[0]);
+                    const tinhCol = cols.find(c => c.toLowerCase().includes('tinh')) || cols[1] || cols[0];
+                    const xaCol = cols.find(c => c.toLowerCase().includes('xa')) || cols[2] || cols[1];
+                    danhMucHanhChinh = hc.map(item => ({ tinh: item[tinhCol], xa: item[xaCol] }));
+                }
+
+                // Tải Dân tộc & Nghề nghiệp & Bệnh (Tự quét tên bảng)
+                danhMucDanToc = await window.fetchAllSupabaseData('dm_dan_toc');
+                if(!danhMucDanToc || danhMucDanToc.length === 0) danhMucDanToc = await window.fetchAllSupabaseData('dm_dantoc');
+                
+                danhMucNgheNghiep = await window.fetchAllSupabaseData('dm_nghe_nghiep');
+                if(!danhMucNgheNghiep || danhMucNgheNghiep.length === 0) danhMucNgheNghiep = await window.fetchAllSupabaseData('dm_nghenghiep');
+                
+                danhMucBenh = await window.fetchAllSupabaseData('dm_benh_truyen_nhiem');
+                if(!danhMucBenh || danhMucBenh.length === 0) danhMucBenh = await window.fetchAllSupabaseData('dm_benhtruyennhiem');
+                
+            } catch (error) {
+                window.showToast("Có lỗi khi tải danh mục gốc (F12 để xem chi tiết)", "error");
+                console.error("loadMasterData Error:", error);
+            }
+        };
+
+        window.exportToExcel = async function() {
+            window.showToast("Đang kết nối để tải dữ liệu báo cáo...", "success");
+            const btn = document.querySelector('button[onclick="window.exportToExcel()"]');
+            btn.innerHTML = 'Đang xử lý...'; btn.disabled = true;
+
+            try {
+                let allData = await window.fetchAllSupabaseData('form_benh_truyen_nhiem');
+
+                if (allData.length === 0) {
+                    window.showToast("Chưa có bất kỳ dữ liệu nào để xuất!", "error");
+                    return;
+                }
+
+                // Map data theo đúng 32 cột chuẩn BYT
+                const excelData = allData.map(item => ({
+                    "STT (1)": item.id, 
+                    "Họ và tên (2)": item.ho_va_ten || "",
+                    "Mã số quản lý tại cơ sở (nếu có) (17)": item.ma_so_ql || "",
+                    "CMND (3)": item.cmnd || "",
+                    "Ngày sinh (4)": item.ngay_sinh || "", 
+                    "Giới tính (5)": item.gioi_tinh || "",
+                    "Dân tộc (6)": item.dan_toc || "",
+                    "Nghề nghiệp (7)": item.nghe_nghiep || "",
+                    "Tỉnh/TP (nơi ở hiện nay) (8)": item.tinh_tp || "",
+                    "Xã/Phường (nơi ở hiện nay) (9)": item.xa_phuong || "",
+                    "Thôn/bản/cụm (nơi ở hiện nay) (15)": "", 
+                    "Địa chỉ (nơi ở hiện nay) (16)": item.dia_chi_chi_tiet || "",
+                    "Nơi làm việc (16)": item.noi_lam_viec || "",
+                    "Điện thoại (13)": item.dien_thoai || "",
+                    "Chẩn đoán chính (10)": item.chan_doan_chinh || "",
+                    "Cấp độ bệnh": item.cap_do_benh || "",
+                    "Điều trị (tiêm, uống vacxin) (18)": item.dieu_tri_vaccine || "",
+                    "Số lần tiêm, uống (19)": item.so_lan_tiem || "",
+                    "Phân loại chẩn đoán (11)": item.phan_loai_chan_doan || "",
+                    "Lấy mẫu xét nghiệm (20)": item.lay_mau_xn || "",
+                    "Loại xét nghiệm (21)": item.loai_xn || "",
+                    "Kết quả xét nghiệm (22)": item.ket_qua_xn || "",
+                    "Tên xét nghiệm": item.ten_xn_cu_the || "",
+                    "Ngày lấy mẫu (*) (23)": "", 
+                    "Ngày khởi phát (24)": item.ngay_khoi_phat || "",
+                    "Ngày nhập viện/Ngày khám (25)": item.ngay_nhap_vien || "",
+                    "Ngày ra viện/chuyển viện/tử vong (26)": item.ngay_ra_vien || "",
+                    "Tình trạng hiện tại (12)": item.tinh_trang_hien_tai || "",
+                    "Chẩn đoán ra viện": item.chan_doan_ra_vien || "",
+                    "Đơn vị chuyển tới": item.don_vi_chuyen_toi || "",
+                    "Tình trạng khác": item.tinh_trang_khac || "",
+                    "Họ tên (27)": item.nguoi_bao_cao_ten || "",
+                    "Số điện thoại (28)": item.nguoi_bao_cao_sdt || "",
+                    "Email (29)": item.nguoi_bao_cao_email || "",
+                    "Hình thức điều trị (30)": item.hinh_thuc_dieu_tri || "",
+                    "Cơ sở điều trị (31)": item.co_so_dieu_tri || "",
+                    "Thông tin chi tiết lỗi (32)": item.truong_32 || ""
+                }));
+
+                const ws = XLSX.utils.json_to_sheet(excelData);
+                const wb = XLSX.utils.book_new();
+                XLSX.utils.book_append_sheet(wb, ws, "DL_BaoCao");
+                XLSX.writeFile(wb, `BaoCao_TruyenNhiem_${new Date().toLocaleDateString('vi-VN').replace(/\//g, '-')}.xlsx`);
+                
+                window.showToast("Tải xuống Excel thành công!");
+            } catch (err) {
+                window.showToast("Lỗi xuất Excel: " + err.message, "error");
+            } finally {
+                btn.innerHTML = `<svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg> Xuất báo cáo Excel`;
+                btn.disabled = false;
+            }
+        };
+
+        window.toTitleCase = function(str) {
+            if(!str) return '';
+            return str.toLowerCase().split(' ').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
+        };
+
+        window.goToStep = function(step) {
+            if(step > currentStep && !window.validateStep(currentStep)) {
+                window.showToast("Vui lòng điền đủ các trường bắt buộc có dấu (*)", 'error');
+                return;
+            }
+            
+            document.querySelectorAll('.step-content').forEach(el => {
+                el.classList.add('hidden'); el.classList.remove('block');
+            });
+            document.getElementById(`step${step}`).classList.remove('hidden');
+            document.getElementById(`step${step}`).classList.add('block');
+            
+            document.querySelectorAll('.step-tab').forEach((el, index) => {
+                if (index + 1 === step) {
+                    el.classList.add('active'); el.classList.remove('inactive');
+                    el.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+                } else {
+                    el.classList.add('inactive'); el.classList.remove('active');
+                }
+            });
+            
+            currentStep = step;
+            document.getElementById('btnPrev').classList.toggle('hidden', step === 1);
+            document.getElementById('btnNext').classList.toggle('hidden', step === totalSteps);
+            document.getElementById('btnSubmit').classList.toggle('hidden', step !== totalSteps);
+            document.getElementById('mainScrollArea').scrollTop = 0;
+        };
+
+        window.nextStep = function() { if (currentStep < totalSteps) window.goToStep(currentStep + 1); };
+        window.prevStep = function() { if (currentStep > 1) window.goToStep(currentStep - 1); };
+
+        window.validateStep = function(step) {
+            const stepDiv = document.getElementById(`step${step}`);
+            const requiredInputs = stepDiv.querySelectorAll('input[required], select[required]');
+            for (let input of requiredInputs) { 
+                if (!input.value.trim() && !input.disabled) {
+                    input.focus();
+                    input.classList.add('border-red-500', 'ring-red-200');
+                    setTimeout(() => input.classList.remove('border-red-500', 'ring-red-200'), 2000);
+                    return false; 
+                } 
+            }
+            return true;
+        };
+
+        // Hàm hỗ trợ format định dạng ngày YYYY-MM-DD (từ input date) sang DD/MM/YYYY
+        window.formatDDMMYYYY = function(dateStr) {
+            if (!dateStr) return null;
+            const parts = dateStr.split('-'); // input type="date" trả về YYYY-MM-DD
+            if (parts.length === 3) {
+                return `${parts[2]}/${parts[1]}/${parts[0]}`; // Đảo lại thành DD/MM/YYYY
+            }
+            return dateStr;
+        };
+
+        window.submitForm = async function() {
+            if (!window.validateStep(5)) { window.showToast("Vui lòng điền đủ các trường bắt buộc", 'error'); return; }
+
+            const btn = document.getElementById('btnSubmit');
+            const originalText = btn.innerHTML;
+            btn.innerHTML = "ĐANG LƯU DỮ LIỆU..."; btn.disabled = true;
+
+            // Xử lý Cấp độ bệnh: Chỉ lấy chuỗi trong ngoặc đơn nếu có
+            let capDoBenhValue = document.getElementById('cap_do_benh').value;
+            const matchCD = capDoBenhValue.match(/\(([^)]+)\)/);
+            if (matchCD) { capDoBenhValue = matchCD[1]; }
+
+            const payload = {
+                khoa_phong: document.getElementById('khoa_phong').value,
+                ho_va_ten: document.getElementById('ho_va_ten').value,
+                cmnd: document.getElementById('cmnd').value,
+                ngay_sinh: window.formatDDMMYYYY(document.getElementById('ngay_sinh').value),
+                gioi_tinh: document.getElementById('gioi_tinh').value,
+                dan_toc: document.getElementById('dan_toc').value,
+                nghe_nghiep: document.getElementById('nghe_nghiep').value,
+                
+                tinh_tp: document.getElementById('tinh_tp').value,
+                xa_phuong: document.getElementById('xa_phuong').value,
+                quan_huyen: document.getElementById('quan_huyen').value,
+                dia_chi_chi_tiet: document.getElementById('dia_chi_chi_tiet').value,
+                noi_lam_viec: document.getElementById('noi_lam_viec').value,
+                dien_thoai: document.getElementById('dien_thoai').value,
+                
+                chan_doan_chinh: document.getElementById('chan_doan_chinh').value || document.getElementById('chan_doan_hien_thi').value,
+                cap_do_benh: capDoBenhValue, // Đã bóc tách lấy mã
+                phan_loai_chan_doan: document.getElementById('phan_loai_chan_doan').value,
+                tinh_trang_hien_tai: document.getElementById('tinh_trang_hien_tai').value,
+                dieu_tri_vaccine: document.getElementById('dieu_tri_vaccine').value,
+                so_lan_tiem: document.getElementById('so_lan_tiem').value ? parseInt(document.getElementById('so_lan_tiem').value) : null,
+                chan_doan_ra_vien: document.getElementById('chan_doan_ra_vien').value,
+                don_vi_chuyen_toi: document.getElementById('don_vi_chuyen_toi').value,
+                tinh_trang_khac: document.getElementById('tinh_trang_khac').value,
+                
+                lay_mau_xn: document.getElementById('lay_mau_xn').value,
+                loai_xn: document.getElementById('loai_xn').value,
+                ket_qua_xn: document.getElementById('ket_qua_xn').value,
+                ten_xn_cu_the: document.getElementById('ten_xn_cu_the').value,
+                ngay_khoi_phat: window.formatDDMMYYYY(document.getElementById('ngay_khoi_phat').value),
+                ngay_nhap_vien: window.formatDDMMYYYY(document.getElementById('ngay_nhap_vien').value),
+                ngay_ra_vien: window.formatDDMMYYYY(document.getElementById('ngay_ra_vien').value),
+                
+                co_so_dieu_tri: document.getElementById('co_so_dieu_tri').value,
+                hinh_thuc_dieu_tri: document.getElementById('hinh_thuc_dieu_tri').value,
+                nguoi_bao_cao_ten: document.getElementById('nguoi_bao_cao_ten').value,
+                nguoi_bao_cao_sdt: document.getElementById('nguoi_bao_cao_sdt').value,
+                nguoi_bao_cao_email: document.getElementById('nguoi_bao_cao_email').value
+            };
+
+            const { data, error } = await supabaseClient.from('form_benh_truyen_nhiem').insert([payload]);
+
+            if (error) {
+                console.error(error);
+                window.showToast("Lỗi khi lưu: " + error.message, 'error');
+            } else {
+                window.showToast("Lưu báo cáo thành công! Form đã được làm sạch.");
+                document.getElementById('reportForm').reset();
+                
+                // Khôi phục giá trị user và trường ẩn
+                document.getElementById('khoa_phong').value = currentUser.khoa || '';
+                document.getElementById('nguoi_bao_cao_ten').value = currentUser.ten || '';
+                document.getElementById('nguoi_bao_cao_sdt').value = currentUser.sdt || '';
+                document.getElementById('nguoi_bao_cao_email').value = currentUser.email || '';
+                document.getElementById('co_so_dieu_tri').value = '81711_BV';
+                
+                document.getElementById('xa_phuong').disabled = true;
+                document.getElementById('xa_phuong').value = '';
+                document.getElementById('chan_doan_chinh').value = '';
+                document.getElementById('cap_do_benh').innerHTML = '<option value="">-- Tự động lọc sau khi chọn Bệnh --</option>';
+                
+                // Trả các triggers về mặc định để hiện/ẩn đúng
+                document.getElementById('ngay_sinh').dispatchEvent(new Event('change'));
+                document.getElementById('dieu_tri_vaccine').dispatchEvent(new Event('change'));
+                document.getElementById('lay_mau_xn').dispatchEvent(new Event('change'));
+                document.getElementById('tinh_trang_hien_tai').dispatchEvent(new Event('change'));
+
+                window.goToStep(1);
+            }
+            
+            btn.innerHTML = originalText; btn.disabled = false;
+        };
+
+        window.removeAccents = function(str) {
+            return str.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+        };
+
+        // Khởi tạo Fuzzy Search (Hỗ trợ click xổ menu)
+        window.setupFuzzySearch = function(inputId, dropdownId, dataArrayFn, renderItemFn, onSelectFn, searchKeyFn) {
+            const input = document.getElementById(inputId);
+            const dropdown = document.getElementById(dropdownId);
+            let debounceTimer;
+            
+            const renderList = (val = '') => {
+                const dataArray = typeof dataArrayFn === 'function' ? dataArrayFn() : dataArrayFn;
+                if(!dataArray || dataArray.length === 0) {
+                    dropdown.innerHTML = '<div class="p-2 text-sm text-gray-400 italic">Đang tải hoặc không có dữ liệu...</div>';
+                    dropdown.style.display = 'block';
+                    return;
+                }
+
+                dropdown.innerHTML = '';
+                const uniqueResults = [];
+                const addedKeys = new Set();
+                const targetVal = window.removeAccents(val.trim());
+                
+                for(let item of dataArray) {
+                    const rawTarget = typeof searchKeyFn === 'function' ? searchKeyFn(item) : item[searchKeyFn] || '';
+                    const target = window.removeAccents(rawTarget);
+                    
+                    if(target.includes(targetVal) && !addedKeys.has(rawTarget)) {
+                        uniqueResults.push(item);
+                        addedKeys.add(rawTarget);
+                    }
+                }
+
+                if (uniqueResults.length > 0) {
+                    uniqueResults.slice(0, 100).forEach(item => {
+                        const div = document.createElement('div');
+                        div.className = 'dropdown-item';
+                        div.innerHTML = renderItemFn(item, val);
+                        div.onclick = function(e) {
+                            e.stopPropagation();
+                            onSelectFn(item);
+                            dropdown.style.display = 'none';
+                        };
+                        dropdown.appendChild(div);
+                    });
+                    dropdown.style.display = 'block';
+                } else {
+                    dropdown.innerHTML = '<div class="p-2 text-sm text-gray-400 italic">Không tìm thấy kết quả...</div>';
+                    dropdown.style.display = 'block';
+                }
+            };
+
+            input.addEventListener('focus', function() { if(!this.disabled) renderList(this.value); });
+            input.addEventListener('click', function(e) { e.stopPropagation(); if(!this.disabled) renderList(this.value); });
+            input.addEventListener('input', function() { clearTimeout(debounceTimer); debounceTimer = setTimeout(() => { renderList(this.value); }, 150); });
+            dropdown.addEventListener('click', function(e) { e.stopPropagation(); });
+            document.addEventListener('click', function(e) {
+                if (e.target !== input && !dropdown.contains(e.target)) { dropdown.style.display = 'none'; }
+            });
+        };
+
+        window.addEventListener('DOMContentLoaded', () => {
+            
+            window.checkSession();
+
+            // --- LOGIC: BẮT BUỘC NHẬP CHẨN ĐOÁN RA VIỆN NẾU TÌNH TRẠNG = RA VIỆN ---
+            const tinhTrangSelect = document.getElementById('tinh_trang_hien_tai');
+            const chanDoanRaVienInput = document.getElementById('chan_doan_ra_vien');
+            tinhTrangSelect.addEventListener('change', function() {
+                if (this.value === 'Ra viện' || this.value.includes('Ra viện')) {
+                    chanDoanRaVienInput.required = true;
+                    chanDoanRaVienInput.parentElement.querySelector('label').innerHTML = 'Chẩn đoán ra viện <span class="text-red-500">*</span>';
+                } else {
+                    chanDoanRaVienInput.required = false;
+                    chanDoanRaVienInput.parentElement.querySelector('label').innerHTML = 'Chẩn đoán ra viện';
+                    chanDoanRaVienInput.classList.remove('border-red-500', 'ring-red-200');
+                }
+            });
+
+            // --- LOGIC: TÍNH TUỔI VÀ CCCD ---
+            const ngaySinhInput = document.getElementById('ngay_sinh');
+            const cmndInput = document.getElementById('cmnd');
+            const cmndAsterisk = document.getElementById('cmnd_asterisk');
+            
+            ngaySinhInput.addEventListener('change', function() {
+                if(!this.value) return;
+                const birthDate = new Date(this.value);
+                const today = new Date();
+                let age = today.getFullYear() - birthDate.getFullYear();
+                const m = today.getMonth() - birthDate.getMonth();
+                if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) age--;
+
+                if(age < 14) {
+                    cmndInput.required = false;
+                    cmndAsterisk.classList.add('hidden');
+                    cmndInput.placeholder = "Không bắt buộc (Dưới 14 tuổi)";
+                } else {
+                    cmndInput.required = true;
+                    cmndAsterisk.classList.remove('hidden');
+                    cmndInput.placeholder = "Số định danh cá nhân (Bắt buộc) *";
+                }
+            });
+
+            // --- LOGIC: ĐIỀU TRỊ VACCINE VÀ SỐ LẦN TIÊM ---
+            const vaccineSelect = document.getElementById('dieu_tri_vaccine');
+            const soLanTiemContainer = document.getElementById('so_lan_tiem_container');
+            const soLanTiemInput = document.getElementById('so_lan_tiem');
+            
+            vaccineSelect.addEventListener('change', function() {
+                if (this.value.includes('Có') || this.value === '1. Có') {
+                    soLanTiemContainer.style.display = 'block';
+                    soLanTiemInput.required = true;
+                } else {
+                    soLanTiemContainer.style.display = 'none';
+                    soLanTiemInput.required = false;
+                    soLanTiemInput.value = ''; 
+                }
+            });
+            vaccineSelect.dispatchEvent(new Event('change'));
+
+            // --- LOGIC: XÉT NGHIỆM ---
+            const layMauSelect = document.getElementById('lay_mau_xn');
+            const xnFields = [
+                { input: document.getElementById('loai_xn'), container: document.getElementById('container_loai_xn') },
+                { input: document.getElementById('ket_qua_xn'), container: document.getElementById('container_ket_qua_xn') },
+                { input: document.getElementById('ten_xn_cu_the'), container: document.getElementById('container_ten_xn') }
+            ];
+
+            layMauSelect.addEventListener('change', function() {
+                const isNo = this.value.includes('Không') || this.value === '2. Không';
+                xnFields.forEach(field => {
+                    if (isNo) {
+                        field.container.style.display = 'none'; field.input.required = false; field.input.value = ''; 
+                    } else {
+                        field.container.style.display = 'block';
+                    }
+                });
+            });
+            layMauSelect.dispatchEvent(new Event('change'));
+
+
+            const highlightText = (text, searchStr) => {
+                if(!searchStr || !text) return text;
+                const regex = new RegExp(`(${searchStr})`, "gi");
+                return text.replace(regex, "<span class='bg-yellow-200 font-medium'>$1</span>");
+            };
+
+            // Tỉnh / TP
+            window.setupFuzzySearch('tinh_tp', 'tinhDropdown', 
+                () => danhMucHanhChinh, 
+                (item, search) => highlightText(item.tinh, search), 
+                item => {
+                    document.getElementById('tinh_tp').value = item.tinh;
+                    const xaInput = document.getElementById('xa_phuong');
+                    xaInput.disabled = false;
+                    xaInput.value = '';
+                    xaInput.placeholder = `Chọn Xã thuộc ${item.tinh}...`;
+                    document.getElementById('quan_huyen').value = '';
+                    danhSachXaCuaTinh = danhMucHanhChinh.filter(x => x.tinh === item.tinh && x.xa);
+                },
+                item => item.tinh
+            );
+
+            // Xã / Phường
+            window.setupFuzzySearch('xa_phuong', 'xaDropdown',
+                () => danhSachXaCuaTinh,
+                (item, search) => highlightText(item.xa, search),
+                item => {
+                    document.getElementById('xa_phuong').value = item.xa;
+                    document.getElementById('quan_huyen').value = item.xa;
+                },
+                item => item.xa
+            );
+
+            // Setup Bệnh
+            window.setupFuzzySearch('chan_doan_hien_thi', 'benhDropdown',
+                () => danhMucBenh,
+                (item, search) => {
+                    const keys = Object.keys(item);
+                    const nameKey = item.ten_benh_chung ? 'ten_benh_chung' : (keys.find(k => k.toLowerCase().includes('benh')) || keys[1] || keys[0]);
+                    return highlightText(item[nameKey] || '', search);
+                },
+                item => {
+                    const keys = Object.keys(item);
+                    const nameKey = item.ten_benh_chung ? 'ten_benh_chung' : (keys.find(k => k.toLowerCase().includes('benh')) || keys[1] || keys[0]);
+                    const tenBenh = item[nameKey] || '';
+                    
+                    document.getElementById('chan_doan_hien_thi').value = tenBenh;
+                    document.getElementById('chan_doan_chinh').value = item.ma_icd_chinh || item.ma_icd || item.ma_icd10 || ''; 
+                    
+                    const capDoInput = document.getElementById('cap_do_benh');
+                    const capDoDataList = document.getElementById('danhSachCapDo');
+                    
+                    if (capDoDataList) capDoDataList.innerHTML = '';
+                    capDoInput.value = ''; 
+                    
+                    const theBenhList = danhMucBenh.filter(b => b[nameKey] === tenBenh);
+                    let hasCapDo = false;
+                    
+                    theBenhList.forEach(c => {
+                        const cKeys = Object.keys(c);
+                        const capDoKey = cKeys.find(k => k.includes('cap_do') || k.includes('the_benh') || k.includes('muc_do') || k.includes('phan_loai') || k.includes('phan_do'));
+                        const theBenhName = capDoKey ? c[capDoKey] : '';
+                        
+                        if(theBenhName && theBenhName !== 'NULL' && theBenhName !== null) {
+                            hasCapDo = true;
+                            let opt = document.createElement('option');
+                            opt.value = theBenhName; 
+                            capDoDataList.appendChild(opt);
+                        }
+                    });
+
+                    if(hasCapDo) {
+                        capDoInput.placeholder = "Click mũi tên góc phải hoặc gõ để chọn...";
+                        capDoInput.classList.add('bg-blue-50', 'border-blue-400');
+                        capDoInput.classList.remove('bg-gray-50', 'bg-white');
+                    } else {
+                        capDoInput.placeholder = "(Nhập tay cấp độ nếu có. VD: Độ 1)";
+                        capDoInput.classList.add('bg-white');
+                        capDoInput.classList.remove('bg-blue-50', 'border-blue-400', 'bg-gray-50');
+                    }
+                },
+                item => {
+                    const keys = Object.keys(item);
+                    const nameKey = item.ten_benh_chung ? 'ten_benh_chung' : (keys.find(k => k.toLowerCase().includes('benh')) || keys[1] || keys[0]);
+                    return item[nameKey] || '';
+                }
+            );
+                    
+            // Dân tộc 
+            window.setupFuzzySearch('dan_toc', 'danTocDropdown', 
+                () => danhMucDanToc, 
+                (item, search) => {
+                    const keys = Object.keys(item);
+                    const val = item.ten_dan_toc || item[keys.find(k => k.toLowerCase().includes('dan'))] || item[keys[keys.length-1]] || '';
+                    return highlightText(val, search);
+                }, 
+                item => { 
+                    const keys = Object.keys(item);
+                    document.getElementById('dan_toc').value = item.ten_dan_toc || item[keys.find(k => k.toLowerCase().includes('dan'))] || item[keys[keys.length-1]] || ''; 
+                },
+                item => {
+                    const keys = Object.keys(item);
+                    return item.ten_dan_toc || item[keys.find(k => k.toLowerCase().includes('dan'))] || item[keys[keys.length-1]] || '';
+                }
+            );
+
+            // Nghề nghiệp
+            window.setupFuzzySearch('nghe_nghiep', 'ngheNghiepDropdown', 
+                () => danhMucNgheNghiep, 
+                (item, search) => {
+                    const keys = Object.keys(item);
+                    const val = item.ten_nghe || item[keys.find(k => k.toLowerCase().includes('nghe'))] || item[keys[keys.length-1]] || '';
+                    return highlightText(val, search);
+                }, 
+                item => { 
+                    const keys = Object.keys(item);
+                    document.getElementById('nghe_nghiep').value = item.ten_nghe || item[keys.find(k => k.toLowerCase().includes('nghe'))] || item[keys[keys.length-1]] || ''; 
+                },
+                item => {
+                    const keys = Object.keys(item);
+                    return item.ten_nghe || item[keys.find(k => k.toLowerCase().includes('nghe'))] || item[keys[keys.length-1]] || '';
+                }
+            );
+        });
+    </script>
+</body>

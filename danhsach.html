@@ -1,0 +1,587 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Danh Sách Các Ca Đã Nhập</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🏥</text></svg>">
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Supabase JS -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    
+    <style>
+        .hide-scrollbar::-webkit-scrollbar { display: none; }
+        .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+        .table-row-hover:hover { background-color: #f8fafc; }
+        
+        /* CSS DÀNH CHO BẢN IN */
+        @media print {
+            body { background: white !important; padding: 0 !important; margin: 0 !important; }
+            .no-print, header { display: none !important; }
+            #printArea { display: block !important; width: 100%; color: black; font-family: 'Times New Roman', Times, serif; }
+            
+            .print-title { text-align: center; font-weight: bold; font-size: 18px; margin-bottom: 15px; text-transform: uppercase; }
+            .print-table { width: 100%; border-collapse: collapse; font-size: 14px; margin-bottom: 20px; }
+            .print-table th, .print-table td { border: 1px solid #000; padding: 6px 8px; vertical-align: top; }
+            .print-table .no-border td { border: none !important; padding-top: 15px; }
+            .bg-section { background-color: #f2f2f2; font-weight: bold; }
+            .flex-space { display: flex; justify-content: space-between; }
+        }
+    </style>
+</head>
+<body class="bg-gray-100 text-gray-800 h-screen overflow-hidden flex flex-col">
+
+    <!-- Header -->
+    <header class="bg-blue-700 text-white p-4 flex justify-between items-center shadow-md shrink-0 flex-wrap gap-2 no-print">
+        <div class="flex items-center space-x-3">
+            <h1 class="text-xl font-bold hidden sm:block">Danh Sách Báo Cáo</h1>
+            <p id="userInfoDisplay" class="text-xs text-blue-200 mt-0.5 sm:hidden">Đang tải...</p>
+            <div id="userInfoDisplayDesktop" class="hidden sm:block text-xs text-blue-200 mt-0.5">Đang tải...</div>
+        </div>
+        <div class="flex space-x-2">
+            <a href="index.html" class="bg-gray-100 hover:bg-gray-200 text-blue-700 font-medium py-1.5 px-3 sm:px-4 rounded text-sm transition shadow-sm flex items-center">
+                <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path></svg>
+                <span class="hidden sm:inline">Quay lại</span> Nhập liệu
+            </a>
+            <button onclick="window.handleLogout()" class="bg-blue-800 hover:bg-blue-900 text-white font-medium py-1.5 px-3 sm:px-4 rounded text-sm transition shadow-sm border border-blue-600">
+                Đăng xuất
+            </button>
+        </div>
+    </header>
+
+    <!-- Content -->
+    <div class="flex-1 p-4 sm:p-6 overflow-hidden flex flex-col max-w-[1400px] w-full mx-auto no-print">
+        
+        <!-- Bộ lọc -->
+        <div class="bg-white p-4 rounded-lg shadow-sm border border-gray-200 mb-4 shrink-0 flex flex-wrap gap-4 items-end">
+            <div class="flex-1 min-w-[200px]">
+                <label class="block text-sm font-medium text-gray-700 mb-1">Tìm kiếm (Tên / CCCD)</label>
+                <div class="relative">
+                    <input type="text" id="filterKeyword" placeholder="Nhập tên hoặc số giấy tờ..." class="border border-gray-300 rounded p-2 focus:ring-2 focus:ring-blue-500 outline-none w-full pr-8">
+                    <div class="absolute inset-y-0 right-0 flex items-center pr-2 pointer-events-none text-gray-400">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+                    </div>
+                </div>
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Từ ngày (Ra viện)</label>
+                <input type="date" id="filterFromDate" class="border border-gray-300 rounded p-2 focus:ring-2 focus:ring-blue-500 outline-none w-full sm:w-auto">
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Đến ngày (Ra viện)</label>
+                <input type="date" id="filterToDate" class="border border-gray-300 rounded p-2 focus:ring-2 focus:ring-blue-500 outline-none w-full sm:w-auto">
+            </div>
+            <button onclick="window.fetchData()" class="bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-6 rounded transition shadow-sm flex items-center w-full sm:w-auto justify-center">
+                Tìm kiếm
+            </button>
+        </div>
+
+        <!-- Bảng dữ liệu -->
+        <div class="bg-white rounded-lg shadow-sm border border-gray-200 flex-1 overflow-hidden flex flex-col">
+            <div class="overflow-x-auto overflow-y-auto flex-1 hide-scrollbar relative">
+                <table class="min-w-full divide-y divide-gray-200 text-sm">
+                    <thead class="bg-gray-50 sticky top-0 z-10 shadow-sm">
+                        <tr>
+                            <th class="px-4 py-3 text-left font-medium text-gray-500 uppercase tracking-wider w-16">STT</th>
+                            <th class="px-4 py-3 text-left font-medium text-gray-500 uppercase tracking-wider">Họ và Tên</th>
+                            <th class="px-4 py-3 text-left font-medium text-gray-500 uppercase tracking-wider">Mã Bệnh/Chẩn đoán</th>
+                            <th class="px-4 py-3 text-left font-medium text-gray-500 uppercase tracking-wider">Cấp độ bệnh</th>
+                            <th class="px-4 py-3 text-left font-medium text-gray-500 uppercase tracking-wider">Tình trạng</th>
+                            <th class="px-4 py-3 text-left font-medium text-gray-500 uppercase tracking-wider">Ngày Khởi phát</th>
+                            <th class="px-4 py-3 text-left font-medium text-gray-500 uppercase tracking-wider">Ngày Ra viện</th>
+                            <th class="px-4 py-3 text-center font-medium text-gray-500 uppercase tracking-wider w-20">Thao tác</th>
+                        </tr>
+                    </thead>
+                    <tbody id="dataTableBody" class="bg-white divide-y divide-gray-200">
+                        <!-- Dữ liệu render tại đây -->
+                        <tr><td colspan="8" class="text-center py-8 text-gray-500">Đang tải dữ liệu...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+            <div class="bg-gray-50 border-t border-gray-200 p-3 text-sm text-gray-600 flex justify-between shrink-0">
+                <span id="recordCount">Tổng số ca: 0</span>
+                <span id="deptNote" class="italic">Dữ liệu hiển thị thuộc khoa của bạn</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- KHU VỰC ẨN: DÀNH RIÊNG CHO IN ẤN -->
+    <div id="printArea" class="hidden">
+        <!-- Bổ sung Header cho bản in -->
+        <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 20px; font-size: 15px; font-family: 'Times New Roman', Times, serif;">
+            <div style="text-align: center; line-height: 1.4;">
+                SỞ Y TẾ TỈNH VĨNH LONG<br>
+                <b style="text-decoration: underline;">BỆNH VIỆN ĐKKV CẦU NGANG</b>
+            </div>
+            <div style="text-align: right; font-weight: bold; font-size: 16px;">
+                Mẫu 01
+            </div>
+        </div>
+        
+        <div class="print-title">BÁO CÁO TRƯỜNG HỢP BỆNH</div>
+        <table class="print-table">
+            <tr>
+                <td colspan="6" class="bg-section text-center">THÔNG TIN BỆNH NHÂN</td>
+            </tr>
+            <tr>
+                <td colspan="3">Họ và tên bệnh nhân: <b id="pr_ten"></b></td>
+                <td colspan="3">Số định danh cá nhân/CMND/CCCD/hộ chiếu: <span id="pr_cmnd"></span></td>
+            </tr>
+            <tr>
+                <td colspan="2">Ngày, tháng, năm sinh: <span id="pr_ngaysinh"></span></td>
+                <td colspan="2">Giới tính: <span id="pr_gt_nam">□</span> Nam &nbsp;&nbsp;&nbsp; <span id="pr_gt_nu">□</span> Nữ &nbsp;&nbsp;&nbsp; <span id="pr_gt_kxd">□</span> K.X.Đ</td>
+                <td colspan="1">Dân tộc: <span id="pr_dantoc"></span></td>
+                <td colspan="1">Nghề nghiệp: <span id="pr_nghe"></span></td>
+            </tr>
+            <tr>
+                <td colspan="4">Nơi ở hiện nay: <span id="pr_noio"></span></td>
+                <td colspan="2">Điện thoại liên lạc: <span id="pr_sdt"></span></td>
+            </tr>
+            <tr>
+                <td colspan="6">Địa chỉ thường trú: <span id="pr_thuongtru"></span></td>
+            </tr>
+            <tr>
+                <td colspan="6">Nơi làm việc/học tập: <span id="pr_noilamviec"></span></td>
+            </tr>
+            <tr>
+                <td colspan="6">
+                    Tên bệnh truyền nhiễm (ghi rõ): <b id="pr_tenbenh"></b> ...................... 
+                    Mã ICD-10: <b id="pr_maicd"></b> <br>
+                    Thuộc phân loại báo cáo: <span id="pr_bc_24h">□</span> 24 giờ &nbsp;&nbsp; <span id="pr_bc_48h">□</span> 48 giờ &nbsp;&nbsp; <span id="pr_bc_tuan">□</span> Hàng Tuần
+                </td>
+            </tr>
+            <tr>
+                <td colspan="6">
+                    Tình trạng tiêm chủng: Đề nghị cung cấp thông tin về tình trạng tiêm, uống vắc xin phòng bệnh truyền nhiễm đang mắc<br>
+                    <span id="pr_tiem_co">□</span> Có &rarr; Số lần tiêm, uống: <b>[<span id="pr_solantiem">&nbsp;&nbsp;&nbsp;&nbsp;</span>]</b> &nbsp;&nbsp;&nbsp;&nbsp;
+                    <span id="pr_tiem_ko">□</span> Không &nbsp;&nbsp;&nbsp;&nbsp;
+                    <span id="pr_tiem_kr">□</span> Không rõ
+                </td>
+            </tr>
+            <tr class="bg-section">
+                <td colspan="2">Phân loại chẩn đoán</td>
+                <td colspan="2">Ngày khởi phát / Nhập viện</td>
+                <td colspan="2">Tình trạng</td>
+            </tr>
+            <tr>
+                <td colspan="2">
+                    <span id="pr_cd_lamsang">□</span> Lâm sàng (nghi ngờ)<br>
+                    <span id="pr_cd_xacnhan">□</span> Xác định phòng xét nghiệm<br><br>
+                    Lấy mẫu xét nghiệm chẩn đoán:<br>
+                    <span id="pr_mau_co">□</span> Có &nbsp;&nbsp; <span id="pr_mau_ko">□</span> Không<br><br>
+                    Loại xét nghiệm:<br>
+                    <span id="pr_loai_testnhanh">□</span> Test nhanh &nbsp;&nbsp; <span id="pr_loai_mac">□</span> Huyết thanh học<br>
+                    <span id="pr_loai_pcr">□</span> PCR/RT-PCR &nbsp;&nbsp; <span id="pr_loai_khac">□</span> Khác: <span id="pr_loai_text"></span><br><br>
+                    Kết quả xét nghiệm chẩn đoán:<br>
+                    <span id="pr_kq_duong">□</span> Dương tính &nbsp;&nbsp; <span id="pr_kq_am">□</span> Âm tính<br>
+                    <span id="pr_kq_nghi">□</span> Nghi ngờ &nbsp;&nbsp; <span id="pr_kq_chua">□</span> Chưa có kết quả
+                </td>
+                <td colspan="2">
+                    Ngày khởi phát: <span id="pr_ngaykhoiphat"></span><br><br>
+                    Ngày nhập viện: <span id="pr_ngaynhapvien"></span><br><br>
+                    Ngày ra viện/chuyển viện/tử vong:<br><span id="pr_ngayravien"></span>
+                </td>
+                <td colspan="2">
+                    <span id="pr_tt_ngoai">□</span> Điều trị ngoại trú<br>
+                    <span id="pr_tt_noi">□</span> Điều trị nội trú<br>
+                    <span id="pr_tt_ra">□</span> Ra viện<br>
+                    <span id="pr_tt_chuyen">□</span> Chuyển viện<br>
+                    <span id="pr_tt_tu">□</span> Tử vong<br>
+                    <span id="pr_tt_khac">□</span> Khác
+                </td>
+            </tr>
+            <tr>
+                <td colspan="6">TIỀN SỬ DỊCH TỄ (tiền sử đi lại trước khi mắc bệnh, tiếp xúc người bệnh/trường hợp nghi ngờ, tiếp xúc động vật/gia cầm, tiền sử phơi nhiễm khác…)<br><br><br></td>
+            </tr>
+            <tr>
+                <td colspan="6" class="bg-section text-center">THÔNG TIN NGƯỜI BÁO CÁO</td>
+            </tr>
+            <tr>
+                <td colspan="3">Tên người báo cáo: <span id="pr_nguoibaocao"></span></td>
+                <td colspan="3">Điện thoại: <span id="pr_nguoisdt"></span></td>
+            </tr>
+            <tr>
+                <td colspan="3">Đơn vị công tác: <span id="pr_nguoidonvi"></span></td>
+                <td colspan="3">Email: <span id="pr_nguoiemail"></span></td>
+            </tr>
+            <tr class="no-border">
+                <td colspan="3" style="text-align: left;">
+                    <b>Nơi nhận:</b><br>
+                    - CDC Tỉnh;<br>
+                    - Lưu HSTB.
+                </td>
+                <td colspan="3" style="text-align: center;">
+                    Ngày ..... tháng ..... năm 20.....<br>
+                    <b>LÃNH ĐẠO ĐƠN VỊ</b><br>
+                    <i>(Ký và ghi rõ họ tên)</i><br><br><br><br><br>
+                </td>
+            </tr>
+        </table>
+    </div>
+
+    <!-- Nhúng file cấu hình Supabase -->
+    <script src="config.js"></script>
+
+    <script>
+        const supabaseClient = window.supabase.createClient(CONFIG.SUPABASE_URL, CONFIG.SUPABASE_KEY);
+        let currentUser = null;
+        let allDepartmentData = [];
+        let danhMucBenh = []; // Thêm biến lưu danh mục bệnh
+
+        window.handleLogout = function() {
+            sessionStorage.removeItem('userSession');
+            window.location.href = 'index.html';
+        };
+
+        // Hàm bỏ dấu tiếng Việt để tìm kiếm chính xác
+        window.removeAccents = function(str) {
+            if(!str) return '';
+            return str.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+        };
+
+        // Hàm tự động phân loại báo cáo dựa theo Tên bệnh/Mã ICD
+        window.getPhanLoaiBaoCao = function(tenBenh) {
+            if(!tenBenh) return 'tuan';
+            const lowerBenh = tenBenh.toLowerCase();
+
+            // Danh sách từ khóa nhận diện bệnh 24h
+            const list24h = ['bạch hầu', 'bại liệt', 'adeno', 'ebola', 'lassa', 'marburg', 'nipah', 'cúm a(h5n1)', 'cúm a(h5n6)', 'cúm a(h7n9)', 'cúm a(h9n2)', 'tây sông nin', 'dịch hạch', 'não mô cầu', 'sốt vàng', 'sởi', 'mới phát sinh', 'nguy hiểm mới nổi', 'sars', 'mers'];
+            // Danh sách từ khóa nhận diện bệnh 48h
+            const list48h = ['covid', 'chikungunya', 'hanta', 'zika', 'dại', 'ho gà', 'liên cầu lợn', 'rubella', 'sốt rét', 'sốt xuất huyết', 'tay chân miệng', 'tay - chân - miệng', 'than', 'tả', 'uốn ván', 'viêm gan a', 'viêm não nhật bản', 'đậu mùa khỉ'];
+
+            for(let kw of list24h) { if(lowerBenh.includes(kw)) return '24h'; }
+            for(let kw of list48h) { if(lowerBenh.includes(kw)) return '48h'; }
+            
+            // Các bệnh còn lại thuộc danh mục hàng tuần
+            return 'tuan';
+        };
+
+        // Hàm chuyển đổi string DD/MM/YYYY thành object Date để so sánh
+        window.parseVietnameseDate = function(dateString) {
+            if (!dateString) return null;
+            const parts = dateString.split('/');
+            if (parts.length === 3) {
+                // Định dạng Month trong JS bắt đầu từ 0
+                return new Date(parts[2], parseInt(parts[1]) - 1, parts[0]);
+            }
+            return null;
+        };
+
+        // Hàm tải data vượt giới hạn 1000 dòng
+        window.fetchAllSupabaseData = async function(tableName) {
+            let allData = [];
+            let from = 0;
+            const step = 999; 
+            let keepFetching = true;
+
+            try {
+                while (keepFetching) {
+                    const { data, error } = await supabaseClient.from(tableName).select('*').range(from, from + step);
+                    if (error) return []; 
+                    if (!data || data.length === 0) keepFetching = false;
+                    else {
+                        allData = allData.concat(data);
+                        if (data.length <= step) keepFetching = false;
+                        else from += (step + 1);
+                    }
+                }
+                return allData;
+            } catch (err) {
+                return [];
+            }
+        };
+
+        // Hàm tải danh mục bệnh để tra cứu Tên từ Mã ICD
+        window.loadMasterData = async function() {
+            try {
+                danhMucBenh = await window.fetchAllSupabaseData('dm_benh_truyen_nhiem');
+                if(!danhMucBenh || danhMucBenh.length === 0) danhMucBenh = await window.fetchAllSupabaseData('dm_benhtruyennhiem');
+            } catch (error) {
+                console.error("Lỗi tải danh mục bệnh:", error);
+            }
+        };
+
+        window.renderTable = function(data) {
+            const tbody = document.getElementById('dataTableBody');
+            document.getElementById('recordCount').textContent = `Tổng số ca hiển thị: ${data.length}`;
+            
+            if (data.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="8" class="text-center py-8 text-gray-500 font-medium">Không tìm thấy ca bệnh nào phù hợp.</td></tr>';
+                return;
+            }
+
+            tbody.innerHTML = '';
+            data.forEach((row, index) => {
+                // Tùy chỉnh màu Tình trạng hiện tại
+                let statusColor = "bg-gray-100 text-gray-800";
+                if(row.tinh_trang_hien_tai && row.tinh_trang_hien_tai.includes('Ra viện')) statusColor = "bg-green-100 text-green-800";
+                if(row.tinh_trang_hien_tai && row.tinh_trang_hien_tai.includes('Tử vong')) statusColor = "bg-red-100 text-red-800";
+                if(row.tinh_trang_hien_tai && row.tinh_trang_hien_tai.includes('Chuyển viện')) statusColor = "bg-yellow-100 text-yellow-800";
+
+                // Map mã ICD thành tên bệnh để hiển thị trên bảng
+                let tenBenhHienThi = row.chan_doan_chinh || '';
+                if (danhMucBenh && danhMucBenh.length > 0) {
+                    let found = danhMucBenh.find(b => 
+                        (b.ma_icd_chinh && b.ma_icd_chinh.toUpperCase() === tenBenhHienThi.toUpperCase()) || 
+                        (b.ma_icd && b.ma_icd.toUpperCase() === tenBenhHienThi.toUpperCase()) ||
+                        (b.ma_icd10 && b.ma_icd10.toUpperCase() === tenBenhHienThi.toUpperCase())
+                    );
+                    if (found) {
+                        const keys = Object.keys(found);
+                        const nameKey = found.ten_benh_chung ? 'ten_benh_chung' : (keys.find(k => k.toLowerCase().includes('benh')) || keys[1] || keys[0]);
+                        tenBenhHienThi = found[nameKey] || tenBenhHienThi;
+                    }
+                }
+
+                tbody.innerHTML += `
+                    <tr class="table-row-hover transition">
+                        <td class="px-4 py-3 whitespace-nowrap text-gray-500">${index + 1}</td>
+                        <td class="px-4 py-3 whitespace-nowrap">
+                            <div class="font-medium text-gray-900">${row.ho_va_ten || ''}</div>
+                            ${currentUser.quyen === 'admin' ? `<div class="text-xs text-blue-600 mt-0.5">${row.khoa_phong || 'Chưa rõ khoa'}</div>` : ''}
+                        </td>
+                        <td class="px-4 py-3 whitespace-nowrap text-blue-600 font-medium" title="Mã ICD: ${row.chan_doan_chinh}">${tenBenhHienThi}</td>
+                        <td class="px-4 py-3 whitespace-nowrap text-gray-600">${row.cap_do_benh || '-'}</td>
+                        <td class="px-4 py-3 whitespace-nowrap">
+                            <span class="px-2.5 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${statusColor}">
+                                ${row.tinh_trang_hien_tai || '-'}
+                            </span>
+                        </td>
+                        <td class="px-4 py-3 whitespace-nowrap text-gray-600">${row.ngay_khoi_phat || '-'}</td>
+                        <td class="px-4 py-3 whitespace-nowrap text-gray-600 font-medium">${row.ngay_ra_vien || '-'}</td>
+                        <td class="px-4 py-3 whitespace-nowrap text-center">
+                            <button onclick="window.printRowData(${row.id})" class="bg-gray-600 hover:bg-gray-700 text-white p-1.5 rounded shadow-sm transition" title="In phiếu báo cáo">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"></path></svg>
+                            </button>
+                        </td>
+                    </tr>
+                `;
+            });
+        };
+
+        // HÀM IN BIỂU MẪU
+        window.printRowData = function(rowId) {
+            const row = allDepartmentData.find(x => x.id === rowId);
+            if(!row) { alert('Lỗi: Không tìm thấy dữ liệu.'); return; }
+
+            // Helper set giá trị checkbox
+            const getCheck = (condition) => condition ? '☑' : '□';
+            
+            // Map Thông tin hành chính
+            document.getElementById('pr_ten').innerText = (row.ho_va_ten || '').toUpperCase();
+            document.getElementById('pr_cmnd').innerText = row.cmnd || '';
+            document.getElementById('pr_ngaysinh').innerText = row.ngay_sinh || '';
+            
+            document.getElementById('pr_gt_nam').innerText = getCheck(row.gioi_tinh === 'Nam');
+            document.getElementById('pr_gt_nu').innerText = getCheck(row.gioi_tinh === 'Nữ');
+            document.getElementById('pr_gt_kxd').innerText = getCheck(row.gioi_tinh !== 'Nam' && row.gioi_tinh !== 'Nữ');
+            
+            document.getElementById('pr_dantoc').innerText = row.dan_toc || 'Kinh';
+            document.getElementById('pr_nghe').innerText = row.nghe_nghiep || '';
+            
+            const diaChi = [row.dia_chi_chi_tiet, row.xa_phuong, row.quan_huyen, row.tinh_tp].filter(Boolean).join(' - ');
+            document.getElementById('pr_noio').innerText = diaChi;
+            document.getElementById('pr_thuongtru').innerText = diaChi; // Lấy chung địa chỉ
+            document.getElementById('pr_sdt').innerText = row.dien_thoai || '';
+            document.getElementById('pr_noilamviec').innerText = row.noi_lam_viec || '';
+            
+            // Bệnh học
+            let tenBenhIn = row.chan_doan_chinh || '';
+            
+            // Tra cứu Tên bệnh từ danh mục nếu đang là Mã ICD
+            if (danhMucBenh && danhMucBenh.length > 0) {
+                let found = danhMucBenh.find(b => 
+                    (b.ma_icd_chinh && b.ma_icd_chinh.toUpperCase() === tenBenhIn.toUpperCase()) || 
+                    (b.ma_icd && b.ma_icd.toUpperCase() === tenBenhIn.toUpperCase()) ||
+                    (b.ma_icd10 && b.ma_icd10.toUpperCase() === tenBenhIn.toUpperCase())
+                );
+                if (found) {
+                    const keys = Object.keys(found);
+                    const nameKey = found.ten_benh_chung ? 'ten_benh_chung' : (keys.find(k => k.toLowerCase().includes('benh')) || keys[1] || keys[0]);
+                    tenBenhIn = found[nameKey] || tenBenhIn;
+                }
+            }
+
+            document.getElementById('pr_tenbenh').innerText = tenBenhIn; 
+            document.getElementById('pr_maicd').innerText = row.cap_do_benh ? `${row.cap_do_benh}` : '';
+
+            // Loại báo cáo (Tự động Map 24h / 48h / Tuần)
+            const loaiBaoCao = window.getPhanLoaiBaoCao(tenBenhIn);
+            document.getElementById('pr_bc_24h').innerText = getCheck(loaiBaoCao === '24h');
+            document.getElementById('pr_bc_48h').innerText = getCheck(loaiBaoCao === '48h');
+            document.getElementById('pr_bc_tuan').innerText = getCheck(loaiBaoCao === 'tuan');
+
+            // Vacxin
+            const isTiemCo = row.dieu_tri_vaccine && row.dieu_tri_vaccine.includes('Có');
+            document.getElementById('pr_tiem_co').innerText = getCheck(isTiemCo);
+            document.getElementById('pr_tiem_ko').innerText = getCheck(row.dieu_tri_vaccine && row.dieu_tri_vaccine.includes('Không') && !row.dieu_tri_vaccine.includes('rõ'));
+            document.getElementById('pr_tiem_kr').innerText = getCheck(row.dieu_tri_vaccine && row.dieu_tri_vaccine.includes('Không rõ'));
+            document.getElementById('pr_solantiem').innerText = isTiemCo && row.so_lan_tiem ? row.so_lan_tiem : '    ';
+
+            // Phân loại chẩn đoán
+            const plc = row.phan_loai_chan_doan || '';
+            document.getElementById('pr_cd_lamsang').innerText = getCheck(plc.includes('Nghi ngờ') || plc.includes('Có thể'));
+            document.getElementById('pr_cd_xacnhan').innerText = getCheck(plc.includes('xác định') || plc.includes('Xác định'));
+
+            // Xét nghiệm
+            const mau = row.lay_mau_xn || '';
+            document.getElementById('pr_mau_co').innerText = getCheck(mau.includes('Có'));
+            document.getElementById('pr_mau_ko').innerText = getCheck(mau.includes('Không'));
+
+            const loai = row.loai_xn || '';
+            document.getElementById('pr_loai_testnhanh').innerText = getCheck(loai.includes('Test nhanh'));
+            document.getElementById('pr_loai_mac').innerText = getCheck(loai.includes('Mac-elisa') || loai.includes('Huyết thanh'));
+            document.getElementById('pr_loai_pcr').innerText = getCheck(loai.includes('PCR'));
+            document.getElementById('pr_loai_khac').innerText = getCheck(loai.includes('Khác'));
+            document.getElementById('pr_loai_text').innerText = (loai.includes('Khác') || row.ten_xn_cu_the) ? row.ten_xn_cu_the : '';
+
+            const kq = row.ket_qua_xn || '';
+            document.getElementById('pr_kq_duong').innerText = getCheck(kq.includes('Dương'));
+            document.getElementById('pr_kq_am').innerText = getCheck(kq.includes('Âm'));
+            document.getElementById('pr_kq_nghi').innerText = getCheck(kq.includes('Nghi ngờ'));
+            document.getElementById('pr_kq_chua').innerText = getCheck(kq.includes('Chưa có'));
+
+            // Thời gian
+            document.getElementById('pr_ngaykhoiphat').innerText = row.ngay_khoi_phat || '.../.../......';
+            document.getElementById('pr_ngaynhapvien').innerText = row.ngay_nhap_vien || '.../.../......';
+            document.getElementById('pr_ngayravien').innerText = row.ngay_ra_vien || '.../.../......';
+
+            // Tình trạng
+            const tt = row.tinh_trang_hien_tai || '';
+            document.getElementById('pr_tt_ngoai').innerText = getCheck(tt.includes('ngoại trú'));
+            document.getElementById('pr_tt_noi').innerText = getCheck(tt.includes('nội trú'));
+            document.getElementById('pr_tt_ra').innerText = getCheck(tt.includes('Ra viện'));
+            document.getElementById('pr_tt_chuyen').innerText = getCheck(tt.includes('Chuyển viện'));
+            document.getElementById('pr_tt_tu').innerText = getCheck(tt.includes('Tử vong'));
+            document.getElementById('pr_tt_khac').innerText = getCheck(tt.includes('Khác'));
+
+            // Thông tin người báo cáo
+            document.getElementById('pr_nguoibaocao').innerText = row.nguoi_bao_cao_ten || '';
+            document.getElementById('pr_nguoisdt').innerText = row.nguoi_bao_cao_sdt || '';
+            document.getElementById('pr_nguoidonvi').innerText = (row.khoa_phong ? row.khoa_phong + ' - ' : '') + (row.co_so_dieu_tri || '');
+            document.getElementById('pr_nguoiemail').innerText = row.nguoi_bao_cao_email || '';
+
+            // Lệnh in
+            window.print();
+        };
+
+        window.fetchData = async function() {
+            const keywordInput = window.removeAccents(document.getElementById('filterKeyword').value.trim());
+            const fromDateInput = document.getElementById('filterFromDate').value; 
+            const toDateInput = document.getElementById('filterToDate').value;     
+            
+            const tbody = document.getElementById('dataTableBody');
+            tbody.innerHTML = '<tr><td colspan="8" class="text-center py-8 text-gray-500">Đang phân tích dữ liệu...</td></tr>';
+
+            // Nếu chưa tải dữ liệu gốc của khoa, tiến hành fetch tất cả của khoa đó
+            if (allDepartmentData.length === 0) {
+                try {
+                    let from = 0; const step = 999; let keep = true;
+                    while (keep) {
+                        let query = supabaseClient
+                            .from('form_benh_truyen_nhiem')
+                            .select('*') // LOAD TẤT CẢ DỮ LIỆU ĐỂ HỖ TRỢ IN ẤN
+                            .order('id', { ascending: false })
+                            .range(from, from + step);
+                        
+                        // Lọc theo khoa nếu KHÔNG phải admin
+                        if (currentUser.quyen !== 'admin') {
+                            query = query.eq('khoa_phong', currentUser.khoa);
+                        }
+
+                        const { data, error } = await query;
+                            
+                        if (error) { throw error; } 
+                        if (!data || data.length === 0) { keep = false; }
+                        else {
+                            allDepartmentData = allDepartmentData.concat(data);
+                            if (data.length <= step) keep = false; else from += (step + 1);
+                        }
+                    }
+                } catch(e) {
+                    console.error(e);
+                    tbody.innerHTML = `<tr><td colspan="8" class="text-center py-8 text-red-500">Lỗi tải dữ liệu: ${e.message}</td></tr>`;
+                    return;
+                }
+            }
+
+            // Lọc dữ liệu client-side theo ngày
+            let filteredData = allDepartmentData;
+            
+            // Lọc theo Keyword (Tên hoặc CCCD)
+            if (keywordInput) {
+                filteredData = filteredData.filter(item => {
+                    const tenMatch = window.removeAccents(item.ho_va_ten).includes(keywordInput);
+                    const cmndMatch = window.removeAccents(item.cmnd).includes(keywordInput);
+                    return tenMatch || cmndMatch;
+                });
+            }
+
+            // Lọc theo Khoảng thời gian Ra viện
+            if (fromDateInput || toDateInput) {
+                const fromTime = fromDateInput ? new Date(fromDateInput).getTime() : 0;
+                // Cộng thêm 1 ngày vào toDate để bao gồm cả ngày đó (nếu so sánh time)
+                let toTime = Infinity;
+                if (toDateInput) {
+                    const toObj = new Date(toDateInput);
+                    // Đặt về cuối ngày để tính luôn ngày đó
+                    toObj.setHours(23, 59, 59, 999);
+                    toTime = toObj.getTime();
+                }
+
+                filteredData = allDepartmentData.filter(item => {
+                    if (!item.ngay_ra_vien) return false; // Không có ngày ra viện thì bỏ qua khi dùng bộ lọc này
+                    
+                    const itemDateObj = window.parseVietnameseDate(item.ngay_ra_vien);
+                    if (!itemDateObj) return false;
+                    
+                    const itemTime = itemDateObj.getTime();
+                    return itemTime >= fromTime && itemTime <= toTime;
+                });
+            }
+
+            window.renderTable(filteredData);
+        };
+
+        window.addEventListener('DOMContentLoaded', async () => {
+            // Kiểm tra trạng thái đăng nhập
+            const savedSession = sessionStorage.getItem('userSession');
+            if(!savedSession) {
+                window.location.href = 'index.html'; // Chưa đăng nhập đẩy về trang nhập
+                return;
+            }
+            
+            try {
+                currentUser = JSON.parse(savedSession);
+                const userHtml = `
+                    <span class="font-semibold text-white">${currentUser.ten}</span> 
+                    <span class="mx-1">•</span> Khoa: ${currentUser.khoa}
+                `;
+                document.getElementById('userInfoDisplay').innerHTML = userHtml;
+                if(document.getElementById('userInfoDisplayDesktop')) {
+                    document.getElementById('userInfoDisplayDesktop').innerHTML = userHtml;
+                }
+                
+                // Cập nhật text dưới footer tùy theo quyền
+                if(currentUser.quyen === 'admin') {
+                    document.getElementById('deptNote').innerText = "Hiển thị dữ liệu toàn viện (Quyền Admin)";
+                } else {
+                    document.getElementById('deptNote').innerText = `Dữ liệu hiển thị thuộc khoa: ${currentUser.khoa}`;
+                }
+                
+                // Tải danh mục bệnh trước để map tên
+                await window.loadMasterData();
+
+                // Mặc định load tất cả data của khoa
+                window.fetchData();
+
+            } catch (e) {
+                window.location.href = 'index.html';
+            }
+        });
+    </script>
+</body>
+</html>
