@@ -1,0 +1,688 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Đồng Bộ Dữ Liệu Cổng ECDS</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🏥</text></svg>">
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Supabase JS -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+    <style>
+        .hide-scrollbar::-webkit-scrollbar { display: none; }
+        .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+        .status-badge { padding: 4px 8px; border-radius: 12px; font-size: 12px; font-weight: 600; display: inline-block; }
+        .status-pending { background-color: #f3f4f6; color: #4b5563; border: 1px solid #d1d5db; }
+        .status-success { background-color: #d1fae5; color: #065f46; border: 1px solid #a7f3d0; }
+        .status-error { background-color: #fee2e2; color: #991b1b; border: 1px solid #fecaca; }
+        .status-pushing { background-color: #dbeafe; color: #1e40af; border: 1px solid #bfdbfe; animation: pulse 1.5s infinite; }
+        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: .5; } }
+    </style>
+</head>
+<body class="bg-gray-100 text-gray-800 h-screen overflow-hidden flex flex-col">
+
+    <!-- Header -->
+    <header class="bg-purple-700 text-white p-4 flex justify-between items-center shadow-md shrink-0">
+        <div class="flex items-center space-x-3">
+            <div class="bg-white p-1.5 rounded-md hidden sm:block">
+                <svg class="w-6 h-6 text-purple-700" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path></svg>
+            </div>
+            <div>
+                <h1 class="text-xl font-bold">Đồng Bộ Cổng ECDS Bộ Y Tế</h1>
+                <p class="text-xs text-purple-200 mt-0.5">API v1 - Tự động đệm mã Tỉnh/Xã - Đẩy dữ liệu theo lô</p>
+            </div>
+        </div>
+        <div class="flex space-x-2">
+            <a href="index.html" class="bg-white text-purple-700 hover:bg-gray-100 font-medium py-1.5 px-4 rounded text-sm transition shadow-sm flex items-center">
+                <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path></svg>
+                Quay lại hệ thống
+            </a>
+        </div>
+    </header>
+
+    <!-- Content -->
+    <div class="flex-1 p-4 overflow-hidden flex flex-col max-w-[1400px] w-full mx-auto">
+        
+        <!-- Controls & Auth Section -->
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-4 shrink-0">
+            <!-- Khu vực lọc ngày -->
+            <div class="col-span-1 lg:col-span-2 bg-white p-4 rounded-lg shadow-sm border border-gray-200">
+                <h3 class="text-sm font-bold text-gray-700 mb-3 flex items-center">
+                    <svg class="w-4 h-4 mr-1 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+                    1. Lọc Danh Sách (Theo Ngày Chẩn Đoán)
+                </h3>
+                <div class="flex flex-wrap gap-3 items-end">
+                    <div>
+                        <label class="block text-xs font-medium text-gray-600 mb-1">Từ ngày</label>
+                        <input type="date" id="filterFrom" class="border border-gray-300 rounded p-2 focus:ring-2 focus:ring-purple-500 outline-none w-full sm:w-auto text-sm">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-gray-600 mb-1">Đến ngày</label>
+                        <input type="date" id="filterTo" class="border border-gray-300 rounded p-2 focus:ring-2 focus:ring-purple-500 outline-none w-full sm:w-auto text-sm">
+                    </div>
+                    <button onclick="window.fetchDataToPush()" class="bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-5 rounded transition shadow-sm text-sm flex items-center">
+                        <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+                        Lấy Dữ Liệu
+                    </button>
+                    <!-- Nút Mở khóa đẩy lại -->
+                    <button id="btnUnlock" onclick="window.unlockPushAgain()" class="hidden bg-yellow-500 hover:bg-yellow-600 text-white font-medium py-2 px-5 rounded transition shadow-sm text-sm flex items-center" title="Mở khóa các ca đã đẩy để cập nhật lại lên cổng">
+                        <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 11V7a4 4 0 118 0m-4 8v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2z"></path></svg>
+                        Mở khóa đẩy lại
+                    </button>
+                </div>
+            </div>
+
+            <!-- Khu vực tài khoản ECDS -->
+            <div class="col-span-1 bg-white p-4 rounded-lg shadow-sm border border-gray-200">
+                <h3 class="text-sm font-bold text-gray-700 mb-3 flex items-center">
+                    <svg class="w-4 h-4 mr-1 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path></svg>
+                    2. Tài khoản API Bộ Y Tế
+                </h3>
+                <div class="space-y-2">
+                    <input type="text" id="ecdsUser" placeholder="Tài khoản ECDS (VD: muong_cha_11)" class="border border-gray-300 rounded p-1.5 focus:ring-2 focus:ring-purple-500 outline-none w-full text-sm">
+                    <input type="password" id="ecdsPass" placeholder="Mật khẩu ECDS" class="border border-gray-300 rounded p-1.5 focus:ring-2 focus:ring-purple-500 outline-none w-full text-sm">
+                </div>
+            </div>
+        </div>
+
+        <!-- Bảng dữ liệu chuẩn bị đẩy -->
+        <div class="bg-white rounded-t-lg shadow-sm border border-gray-200 flex-1 overflow-hidden flex flex-col">
+            <div class="bg-gray-50 border-b border-gray-200 p-3 flex justify-between items-center shrink-0">
+                <div class="text-sm font-medium text-gray-700 flex items-center">
+                    <span id="recordCount" class="bg-purple-100 text-purple-800 py-0.5 px-2 rounded-full mr-2">0 ca</span> 
+                    Sẵn sàng đồng bộ
+                </div>
+                <button id="btnPush" onclick="window.pushDataToECDS()" class="bg-green-600 hover:bg-green-700 text-white font-bold py-1.5 px-6 rounded shadow-md transition flex items-center disabled:opacity-50 disabled:cursor-not-allowed" disabled>
+                    <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path></svg>
+                    BẮT ĐẦU ĐẨY LÊN CỔNG
+                </button>
+            </div>
+            <div class="overflow-auto flex-1 hide-scrollbar relative">
+                <table class="min-w-full divide-y divide-gray-200 text-sm">
+                    <thead class="bg-gray-50 sticky top-0 z-10 shadow-sm">
+                        <tr>
+                            <th class="px-3 py-3 text-left font-medium text-gray-500 uppercase tracking-wider w-12 text-center">
+                                <input type="checkbox" id="checkAll" onclick="window.toggleCheckAll()" class="rounded text-purple-600 focus:ring-purple-500">
+                            </th>
+                            <th class="px-3 py-3 text-left font-medium text-gray-500 uppercase tracking-wider">Họ và Tên</th>
+                            <th class="px-3 py-3 text-left font-medium text-gray-500 uppercase tracking-wider">Mã ICD</th>
+                            <th class="px-3 py-3 text-left font-medium text-gray-500 uppercase tracking-wider">Địa chỉ Map (Cổng API)</th>
+                            <th class="px-3 py-3 text-left font-medium text-gray-500 uppercase tracking-wider">Trạng thái API</th>
+                            <th class="px-3 py-3 text-left font-medium text-gray-500 uppercase tracking-wider">Phản hồi từ Cổng</th>
+                        </tr>
+                    </thead>
+                    <tbody id="dataTableBody" class="bg-white divide-y divide-gray-200">
+                        <tr><td colspan="6" class="text-center py-8 text-gray-500">Vui lòng chọn ngày và bấm "Lấy Dữ Liệu"</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Thông Báo -->
+    <div id="toast" class="fixed top-5 right-5 text-white font-medium px-6 py-3 rounded-md shadow-lg transition-all duration-300 transform translate-x-full opacity-0 hidden z-50 flex items-center">
+        <span id="toastIcon" class="mr-2"></span>
+        <span id="toastMsg"></span>
+    </div>
+
+    <!-- Nhúng file cấu hình Supabase -->
+    <script src="config.js"></script>
+
+    <script>
+        const supabaseClient = window.supabase.createClient(CONFIG.SUPABASE_URL, CONFIG.SUPABASE_KEY);
+        
+        let currentUser = null;
+        let dataToPush = [];
+        let dmHanhChinh = [];
+        let dmDanToc = [];
+        let dmNgheNghiep = [];
+
+        window.showToast = function(message, type = 'success') {
+            const toast = document.getElementById('toast');
+            document.getElementById('toastMsg').textContent = message;
+            toast.className = `fixed top-5 right-5 font-medium px-6 py-3 rounded-md shadow-lg transition-all duration-300 z-50 flex items-center ${type === 'success' ? 'bg-green-600' : 'bg-red-600'} text-white`;
+            toast.classList.remove('hidden');
+            setTimeout(() => { toast.classList.remove('translate-x-full', 'opacity-0'); }, 10);
+            setTimeout(() => {
+                toast.classList.add('translate-x-full', 'opacity-0');
+                setTimeout(() => { toast.classList.add('hidden'); }, 300);
+            }, 4000);
+        };
+
+        window.parseVietnameseDate = function(dateString) {
+            if (!dateString) return null;
+            const parts = dateString.split('/');
+            if (parts.length === 3) return new Date(parts[2], parseInt(parts[1]) - 1, parts[0]);
+            return null;
+        };
+
+        window.fetchAllSupabaseData = async function(tableName) {
+            let allData = [];
+            let from = 0;
+            const step = 999; 
+            let keepFetching = true;
+            try {
+                while (keepFetching) {
+                    const { data, error } = await supabaseClient.from(tableName).select('*').range(from, from + step);
+                    if (error) {
+                        console.warn(`Lỗi tải [${tableName}]:`, error.message);
+                        return []; 
+                    }
+                    if (!data || data.length === 0) {
+                        keepFetching = false;
+                    } else {
+                        allData = allData.concat(data);
+                        if (data.length <= step) keepFetching = false;
+                        else from += (step + 1);
+                    }
+                }
+                return allData;
+            } catch (err) {
+                console.error("Lỗi Fetch Data:", err);
+                return [];
+            }
+        };
+
+        window.loadMasterData = async function() {
+            try {
+                let resDT = await window.fetchAllSupabaseData('dm_dan_toc');
+                if(!resDT || resDT.length === 0) resDT = await window.fetchAllSupabaseData('dm_dantoc');
+                dmDanToc = resDT;
+
+                let resNN = await window.fetchAllSupabaseData('dm_nghe_nghiep');
+                if(!resNN || resNN.length === 0) resNN = await window.fetchAllSupabaseData('dm_nghenghiep');
+                dmNgheNghiep = resNN;
+
+                let resHC = await window.fetchAllSupabaseData('dm_hanhchinh');
+                if(!resHC || resHC.length === 0) resHC = await window.fetchAllSupabaseData('dm_hanh_chinh');
+                
+                if(resHC && resHC.length > 0) {
+                    dmHanhChinh = resHC.map(item => {
+                        const keys = Object.keys(item);
+                        const tinhCol = keys.find(c => c.toLowerCase() === 'ten_tinh') || keys.find(c => c.toLowerCase().includes('tinh') && !c.toLowerCase().includes('ma_')) || keys[1];
+                        const xaCol = keys.find(c => c.toLowerCase() === 'ten_xa') || keys.find(c => c.toLowerCase().includes('xa') && !c.toLowerCase().includes('ma_')) || keys[2];
+                        
+                        return {
+                            tinh: item[tinhCol] || item.tinh || "",
+                            xa: item[xaCol] || item.xa || "",
+                            ma_tinh: item.ma_tinh, 
+                            ma_xa: item.ma_xa,     
+                            stt: item.STT || item.stt
+                        };
+                    });
+                }
+            } catch (e) {
+                console.error("Lỗi tải danh mục:", e);
+                window.showToast("Không thể tải danh mục cấu hình để ánh xạ dữ liệu", "error");
+            }
+        };
+
+        window.safeCompare = (str1, str2) => {
+            if(!str1 || !str2) return false;
+            let s1 = str1.toString().trim().toLowerCase().replace(/\s+/g, ' ');
+            let s2 = str2.toString().trim().toLowerCase().replace(/\s+/g, ' ');
+            
+            if(s1 === s2) return true; 
+            
+            const prefixes = ["tỉnh ", "thành phố ", "tp ", "xã ", "phường ", "thị trấn ", "huyện ", "quận "];
+            let cleanS1 = s1;
+            let cleanS2 = s2;
+            
+            prefixes.forEach(p => {
+                if(cleanS1.startsWith(p)) cleanS1 = cleanS1.substring(p.length);
+                if(cleanS2.startsWith(p)) cleanS2 = cleanS2.substring(p.length);
+            });
+            
+            return cleanS1 === cleanS2;
+        };
+
+        window.fetchDataToPush = async function() {
+            const fromDateInput = document.getElementById('filterFrom').value; 
+            const toDateInput = document.getElementById('filterTo').value;
+            
+            if(!fromDateInput || !toDateInput) {
+                window.showToast("Vui lòng chọn đầy đủ Từ Ngày và Đến Ngày", "error");
+                return;
+            }
+
+            const tbody = document.getElementById('dataTableBody');
+            tbody.innerHTML = '<tr><td colspan="6" class="text-center py-8 text-gray-500">Đang quét dữ liệu...</td></tr>';
+            document.getElementById('btnPush').disabled = true;
+            document.getElementById('checkAll').checked = false;
+            document.getElementById('btnUnlock').classList.add('hidden'); // Ẩn nút mở khóa lúc load mới
+
+            try {
+                const { data, error } = await supabaseClient
+                    .from('form_benh_truyen_nhiem')
+                    .select('*');
+
+                if (error) throw error;
+
+                const fromTime = new Date(fromDateInput).getTime();
+                const toObj = new Date(toDateInput);
+                toObj.setHours(23, 59, 59, 999);
+                const toTime = toObj.getTime();
+
+                dataToPush = data.filter(item => {
+                    if (!item.ngay_chan_doan) return false; 
+                    const itemDateObj = window.parseVietnameseDate(item.ngay_chan_doan);
+                    if (!itemDateObj) return false;
+                    const itemTime = itemDateObj.getTime();
+                    return itemTime >= fromTime && itemTime <= toTime;
+                });
+
+                window.renderTable();
+            } catch (e) {
+                tbody.innerHTML = `<tr><td colspan="6" class="text-center py-8 text-red-500">Lỗi: ${e.message}</td></tr>`;
+            }
+        };
+
+        window.renderTable = function() {
+            const tbody = document.getElementById('dataTableBody');
+            document.getElementById('recordCount').textContent = `${dataToPush.length} ca`;
+            
+            if (dataToPush.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="6" class="text-center py-8 text-gray-500 font-medium">Không tìm thấy ca bệnh nào trong khoảng thời gian này.</td></tr>';
+                document.getElementById('btnPush').disabled = true;
+                return;
+            }
+
+            document.getElementById('btnPush').disabled = false;
+            tbody.innerHTML = '';
+            
+            let hasPushedItems = false; 
+
+            dataToPush.forEach((row) => {
+                let previewXaCode = "Chưa nhận diện";
+                let previewTinhCode = "Chưa nhận diện";
+                
+                let xaObj = dmHanhChinh.find(x => 
+                    window.safeCompare(x.xa, row.xa_phuong) && 
+                    window.safeCompare(x.tinh, row.tinh_tp)
+                );
+                
+                if(xaObj) {
+                    let rawMaXa = xaObj.ma_xa != null ? xaObj.ma_xa : xaObj.stt;
+                    if(rawMaXa != null && rawMaXa.toString().trim() !== "") {
+                        previewXaCode = "Mã Xã: " + rawMaXa.toString().trim().padStart(5, '0');
+                    }
+                    let rawMaTinh = xaObj.ma_tinh;
+                    if(rawMaTinh != null && rawMaTinh.toString().trim() !== "") {
+                        previewTinhCode = "Mã Tỉnh: " + rawMaTinh.toString().trim().padStart(2, '0');
+                    }
+                }
+
+                const isPushed = row.dong_bo_ecds === 1;
+                if (isPushed) hasPushedItems = true;
+
+                const checkboxHtml = isPushed 
+                    ? `<input type="checkbox" disabled class="cb-push-locked cb-push rounded text-gray-400 bg-gray-200 cursor-not-allowed" value="${row.id}">`
+                    : `<input type="checkbox" class="cb-push rounded text-purple-600 focus:ring-purple-500" value="${row.id}" checked>`;
+                
+                const statusHtml = isPushed
+                    ? `<span id="badge-${row.id}" class="status-badge status-success">Đã đẩy</span>`
+                    : `<span id="badge-${row.id}" class="status-badge status-pending">Chờ đẩy</span>`;
+
+                const logHtml = isPushed && row.ecds_id
+                    ? `ID ECDS: ${row.ecds_id}`
+                    : `-`;
+
+                tbody.innerHTML += `
+                    <tr class="hover:bg-gray-50 transition ${isPushed ? 'bg-gray-50 opacity-70 row-pushed' : ''}" id="row-${row.id}">
+                        <td class="px-3 py-2 text-center">
+                            ${checkboxHtml}
+                        </td>
+                        <td class="px-3 py-2 whitespace-nowrap font-medium text-gray-900">${row.ho_va_ten || ''}</td>
+                        <td class="px-3 py-2 whitespace-nowrap text-blue-600 font-mono text-xs">${row.chan_doan_chinh || ''}</td>
+                        <td class="px-3 py-2 whitespace-nowrap text-gray-500 text-xs">
+                            ${row.xa_phuong} - ${row.tinh_tp}<br>
+                            <span class="text-indigo-600 font-semibold">${previewTinhCode} - ${previewXaCode}</span>
+                        </td>
+                        <td class="px-3 py-2 whitespace-nowrap text-center">
+                            ${statusHtml}
+                        </td>
+                        <td class="px-3 py-2 text-xs ${isPushed ? 'text-green-600 font-medium' : 'text-gray-500'} truncate max-w-xs" id="log-${row.id}">${logHtml}</td>
+                    </tr>
+                `;
+            });
+            
+            const hasPending = dataToPush.some(r => r.dong_bo_ecds !== 1);
+            document.getElementById('checkAll').checked = hasPending;
+            document.getElementById('btnPush').disabled = !hasPending && !hasPushedItems; 
+
+            if (hasPushedItems) {
+                document.getElementById('btnUnlock').classList.remove('hidden');
+            } else {
+                document.getElementById('btnUnlock').classList.add('hidden');
+            }
+        };
+
+        window.unlockPushAgain = function() {
+            const lockedCheckboxes = document.querySelectorAll('.cb-push-locked');
+            if(lockedCheckboxes.length === 0) return;
+
+            lockedCheckboxes.forEach(cb => {
+                cb.disabled = false;
+                cb.classList.remove('text-gray-400', 'bg-gray-200', 'cursor-not-allowed', 'cb-push-locked');
+                cb.classList.add('text-purple-600', 'focus:ring-purple-500');
+                cb.checked = true; 
+                
+                const id = cb.value;
+                const row = document.getElementById(`row-${id}`);
+                if(row) {
+                    row.classList.remove('bg-gray-50', 'opacity-70', 'row-pushed');
+                    row.classList.add('bg-yellow-50'); 
+                    
+                    const badge = document.getElementById(`badge-${id}`);
+                    if(badge) {
+                        badge.className = "status-badge status-pending";
+                        badge.innerText = "Sẵn sàng cập nhật";
+                    }
+                }
+            });
+
+            document.getElementById('btnPush').disabled = false;
+            window.showToast("Đã mở khóa các ca bệnh! Bạn có thể chọn và đẩy lại để cập nhật lên Cổng ECDS.", "success");
+        };
+
+        window.toggleCheckAll = function() {
+            const isChecked = document.getElementById('checkAll').checked;
+            document.querySelectorAll('.cb-push:not([disabled])').forEach(cb => cb.checked = isChecked);
+        };
+
+        window.mapToEcdsFormat = function(ca) {
+            // 1. Ánh xạ Dân Tộc
+            let danTocCode = "1"; 
+            let dtObj = dmDanToc.find(x => window.safeCompare(x.ten_dan_toc || x.ten, ca.dan_toc));
+            if(dtObj) {
+                let code = dtObj.ma_dan_toc || dtObj.ma || dtObj.stt || dtObj.STT;
+                if(code) danTocCode = code.toString();
+            }
+
+            // 2. Ánh xạ Nghề Nghiệp
+            let ngheCode = "KHAC"; 
+            let nnObj = dmNgheNghiep.find(x => window.safeCompare(x.ten_nghe || x.ten, ca.nghe_nghiep));
+            if(nnObj) {
+                let code = nnObj.ma_nghe || nnObj.ma || nnObj.stt || nnObj.STT;
+                if(code) ngheCode = code.toString();
+            }
+
+            // 3. Ánh xạ Mã Tỉnh và Mã Xã (PADDING 0 TỰ ĐỘNG)
+            let xaCode = "00000"; // Mặc định 5 số 0 nếu lỗi
+            let tinhCode = "00";  // Mặc định 2 số 0 nếu lỗi
+            
+            let xaObj = dmHanhChinh.find(x => 
+                window.safeCompare(x.xa, ca.xa_phuong) && 
+                window.safeCompare(x.tinh, ca.tinh_tp)
+            );
+            
+            if(xaObj) {
+                let rawMaXa = xaObj.ma_xa != null ? xaObj.ma_xa : xaObj.stt;
+                if(rawMaXa != null && rawMaXa.toString().trim() !== "") {
+                    xaCode = rawMaXa.toString().trim().padStart(5, '0');
+                }
+
+                let rawMaTinh = xaObj.ma_tinh;
+                if(rawMaTinh != null && rawMaTinh.toString().trim() !== "") {
+                    tinhCode = rawMaTinh.toString().trim().padStart(2, '0');
+                }
+            }
+
+            // 4. Tính tuổi từ ngày sinh
+            let age = 0;
+            if(ca.ngay_sinh) {
+                let parts = ca.ngay_sinh.split('/');
+                if(parts.length === 3) {
+                    let dob = new Date(parts[2], parts[1]-1, parts[0]);
+                    age = new Date().getFullYear() - dob.getFullYear();
+                }
+            }
+
+            // 5. Chuyển Tình Trạng (Bắt thông minh số đầu tiên)
+            let tt = ca.tinh_trang_hien_tai || "";
+            let tinhTrangCode = parseInt(tt); 
+            if (isNaN(tinhTrangCode)) {
+                tinhTrangCode = 6;
+                if(tt.includes("Ngoại")) tinhTrangCode = 1;
+                else if(tt.includes("Nội")) tinhTrangCode = 2;
+                else if(tt.includes("Ra")) tinhTrangCode = 3;
+                else if(tt.includes("Chuyển")) tinhTrangCode = 4;
+                else if(tt.includes("Tử")) tinhTrangCode = 5;
+            }
+
+            // 6. Chuyển Loại Chẩn Đoán (Bắt thông minh số đầu tiên)
+            let phanLoai = ca.phan_loai_chan_doan || "";
+            let loaiCd = parseInt(phanLoai);
+            if (isNaN(loaiCd)) {
+                loaiCd = 1;
+                if(phanLoai.includes("Có thể")) loaiCd = 2;
+                else if(phanLoai.includes("xét nghiệm") || phanLoai.includes("Xác định")) loaiCd = 3;
+            }
+
+            // 7. Hình thức điều trị (Mặc định là 1 nếu trống)
+            let ht = ca.hinh_thuc_dieu_tri || "";
+            let hinhThucCode = parseInt(ht); 
+            if (isNaN(hinhThucCode)) {
+                hinhThucCode = 1; 
+                if(ht.includes("Tại nhà")) hinhThucCode = 2;
+                else if(ht.includes("cơ quan")) hinhThucCode = 3;
+                else if(ht.includes("Khác")) hinhThucCode = 4;
+            }
+            hinhThucCode = hinhThucCode.toString();
+
+            // 8. Đọc Mã Cơ sở điều trị trực tiếp từ CSDL
+            let maCoSo = ca.co_so_dieu_tri || "81711_BV";
+
+            return {
+                maIcd10Benh: ca.chan_doan_chinh,
+                maPhanLoaiLamSang: ca.cap_do_benh || "",
+                trangThaiCaBenh: 1, 
+                trangThaiLuu: 2, 
+                hoVaTen: ca.ho_va_ten,
+                ngaySinh: ca.ngay_sinh,
+                tuoi: age,
+                maGioiTinh: ca.gioi_tinh === "Nam" ? "M" : (ca.gioi_tinh === "Nữ" ? "F" : "U"),
+                maDanToc: danTocCode,
+                maNgheNghiep: ngheCode,
+                noiLamViec: ca.noi_lam_viec || "",
+                soCccdCmnd: ca.cmnd || "",
+                soDienThoai: ca.dien_thoai || "",
+                
+                maXaHienNay: xaCode,
+                maTinhHienNay: tinhCode,
+                
+                diaChiChiTietHienNay: ca.dia_chi_chi_tiet || "",
+                loaiChanDoan: loaiCd,
+                tinhTrangHienTai: tinhTrangCode,
+                ngayKhoiPhat: ca.ngay_khoi_phat || "",
+                ngayNhapVien: ca.ngay_nhap_vien || "",
+                ngayRaVien: ca.ngay_ra_vien || "",
+                chanDoanRaVien: ca.chan_doan_ra_vien || "",
+                
+                // --- CÁC TRƯỜNG DÀNH CHO BỆNH NHÂN CHUYỂN VIỆN ---
+                noiChuyenToi: ca.don_vi_chuyen_toi ? ca.don_vi_chuyen_toi.toString().trim() : "",
+                maNoiChuyenToi: ca.don_vi_chuyen_toi ? ca.don_vi_chuyen_toi.toString().trim() : "",
+                maCoSoChuyenToi: ca.don_vi_chuyen_toi ? ca.don_vi_chuyen_toi.toString().trim() : "",
+                donViChuyenToi: ca.don_vi_chuyen_toi ? ca.don_vi_chuyen_toi.toString().trim() : "",
+                noiChuyenDen: ca.don_vi_chuyen_toi ? ca.don_vi_chuyen_toi.toString().trim() : "",
+                maNoiChuyenDen: ca.don_vi_chuyen_toi ? ca.don_vi_chuyen_toi.toString().trim() : "",
+                // -------------------------------------------------
+
+                thongTinTiemVacXin: (ca.dieu_tri_vaccine && ca.dieu_tri_vaccine.includes("Có")) ? 1 : 0,
+                coLayMauXetNghiem: (ca.lay_mau_xn && ca.lay_mau_xn.includes("Có")),
+                
+                hoTenNguoiBaoCao: ca.nguoi_bao_cao_ten || "",
+                soDienThoaiNguoiBaoCao: ca.nguoi_bao_cao_sdt || "",
+                emailNguoiBaoCao: ca.nguoi_bao_cao_email || "",
+                
+                maDonViNguoiBaoCao: maCoSo,
+                maCoSoDieuTri: maCoSo, 
+                maHinhThucDieuTri: hinhThucCode,
+                
+                ghiChuChung: ca.ghi_chu || "",
+                benhKemTheo: ca.chan_doan_kem_theo || ""
+            };
+        };
+
+        window.pushDataToECDS = async function() {
+            const user = document.getElementById('ecdsUser').value.trim();
+            const pass = document.getElementById('ecdsPass').value.trim();
+
+            if(!user || !pass) {
+                window.showToast("Vui lòng điền tài khoản và mật khẩu Cổng ECDS", "error");
+                return;
+            }
+
+            const checkedBoxes = Array.from(document.querySelectorAll('.cb-push:checked'));
+            if(checkedBoxes.length === 0) {
+                window.showToast("Bạn chưa chọn ca bệnh nào để đẩy", "error");
+                return;
+            }
+
+            const btnPush = document.getElementById('btnPush');
+            btnPush.disabled = true;
+            btnPush.innerHTML = "ĐANG KẾT NỐI ECDS...";
+
+            let ecdsToken = null;
+            
+            try {
+                const loginRes = await supabaseClient.functions.invoke('ecds-proxy', {
+                    body: {
+                        action: 'login',
+                        payload: { username: user, password: pass }
+                    }
+                });
+
+                if (loginRes.error) throw new Error(loginRes.error.message || "Lỗi gọi Function proxy");
+                
+                const loginData = loginRes.data; 
+                
+                if(loginData && loginData.thanhCong) {
+                    ecdsToken = loginData.duLieu.accessToken;
+                } else {
+                    window.showToast("Đăng nhập ECDS thất bại: " + (loginData?.thongDiep || "Sai tài khoản"), "error");
+                    btnPush.disabled = false;
+                    btnPush.innerHTML = "BẮT ĐẦU ĐẨY LÊN CỔNG";
+                    return;
+                }
+            } catch (err) {
+                console.error(err);
+                window.showToast("Lỗi kết nối tới Trạm Proxy Supabase: " + err.message, "error");
+                btnPush.disabled = false;
+                btnPush.innerHTML = "BẮT ĐẦU ĐẨY LÊN CỔNG";
+                return;
+            }
+
+            let payloadBatch = [];
+            let rowMapping = []; 
+
+            checkedBoxes.forEach(cb => {
+                const id = cb.value;
+                const ca = dataToPush.find(x => x.id.toString() === id);
+                if(ca) {
+                    document.getElementById(`badge-${id}`).className = "status-badge status-pushing";
+                    document.getElementById(`badge-${id}`).innerText = "Đang đẩy...";
+                    
+                    payloadBatch.push(window.mapToEcdsFormat(ca));
+                    rowMapping.push(id); 
+                }
+            });
+
+            console.log("=== KIỂM TRA PAYLOAD GỬI LÊN CỔNG ===");
+            console.log(JSON.stringify(payloadBatch, null, 2));
+            console.log("=======================================");
+
+            try {
+                const pushRes = await supabaseClient.functions.invoke('ecds-proxy', {
+                    body: {
+                        action: 'push_data',
+                        token: ecdsToken,
+                        payload: payloadBatch
+                    }
+                });
+
+                if (pushRes.error) throw new Error(pushRes.error.message || "Lỗi gọi Function proxy");
+
+                const pushData = pushRes.data;
+
+                if(pushData && pushData.thanhCong) {
+                    window.showToast(`Đã đẩy xong. Thành công: ${pushData.duLieu.soThanhCong}, Lỗi: ${pushData.duLieu.soLoi}`);
+                    
+                    if(pushData.duLieu.chiTiet) {
+                        for (const kq of pushData.duLieu.chiTiet) {
+                            const domId = rowMapping[kq.chiSo];
+                            const badge = document.getElementById(`badge-${domId}`);
+                            const log = document.getElementById(`log-${domId}`);
+                            
+                            if(kq.thanhCong) {
+                                badge.className = "status-badge status-success";
+                                badge.innerText = "Thành công";
+                                log.innerText = "ID ECDS: " + kq.idCaBenh;
+                                log.className = "px-3 py-2 text-xs text-green-600 truncate";
+                                
+                                try {
+                                    await supabaseClient.from('form_benh_truyen_nhiem').update({
+                                        dong_bo_ecds: 1,
+                                        ecds_id: kq.idCaBenh
+                                    }).eq('id', domId);
+                                } catch (updateErr) {
+                                    console.error("Lỗi cập nhật DB nội bộ:", updateErr);
+                                }
+
+                                const cb = document.querySelector(`input[value="${domId}"]`);
+                                if(cb) {
+                                    cb.disabled = true;
+                                    cb.classList.add('text-gray-400', 'bg-gray-200', 'cursor-not-allowed', 'cb-push-locked');
+                                    cb.classList.remove('text-purple-600', 'focus:ring-purple-500');
+                                    const tr = document.getElementById(`row-${domId}`);
+                                    if(tr) {
+                                        tr.classList.add('bg-gray-50', 'opacity-70', 'row-pushed');
+                                        tr.classList.remove('bg-yellow-50');
+                                    }
+                                }
+
+                            } else {
+                                badge.className = "status-badge status-error";
+                                badge.innerText = "Lỗi";
+                                log.innerText = kq.cacLoi ? JSON.stringify(kq.cacLoi) : "Lỗi dữ liệu";
+                                log.className = "px-3 py-2 text-xs text-red-600 truncate max-w-xs";
+                            }
+                        }
+                    }
+                } else {
+                    window.showToast("Lỗi đẩy dữ liệu: " + (pushData?.thongDiep || "Unknown Error"), "error");
+                    
+                    checkedBoxes.forEach(cb => {
+                        const id = cb.value;
+                        document.getElementById(`badge-${id}`).className = "status-badge status-error";
+                        document.getElementById(`badge-${id}`).innerText = "Thất bại";
+                    });
+                }
+            } catch(err) {
+                console.error(err);
+                window.showToast("Lỗi trong quá trình gửi Batch: " + err.message, "error");
+            }
+
+            btnPush.disabled = false;
+            btnPush.innerHTML = "BẮT ĐẦU ĐẨY LÊN CỔNG";
+        };
+
+        window.addEventListener('DOMContentLoaded', async () => {
+            const savedSession = sessionStorage.getItem('userSession');
+            if(!savedSession) { window.location.href = 'index.html'; return; }
+            currentUser = JSON.parse(savedSession);
+            
+            if (typeof CONFIG !== 'undefined') {
+                if (CONFIG.ECDS_USER) document.getElementById('ecdsUser').value = CONFIG.ECDS_USER;
+                if (CONFIG.ECDS_PASS) document.getElementById('ecdsPass').value = CONFIG.ECDS_PASS;
+            }
+
+            await window.loadMasterData();
+        });
+    </script>
+</body>
+</html>
