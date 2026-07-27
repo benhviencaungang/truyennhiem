@@ -113,7 +113,7 @@
         <div id="admin-panel" class="hidden flex-1 overflow-auto p-4 sm:p-6 bg-gray-50">
             <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 space-y-4 sm:space-y-0">
                 <div>
-                    <h2 class="text-2xl font-bold text-gray-800">Quản lý Tài Khoản & Báo Cáo</h2>
+                    <h2 class="text-2xl font-bold text-gray-800">Quản lý Tài Khoản Nhân Viên</h2>
                     <p class="text-gray-500 text-sm mt-1">Admin có thể quản lý người dùng và xuất dữ liệu báo cáo.</p>
                 </div>
                 <div class="flex flex-wrap gap-3 items-center">
@@ -129,6 +129,13 @@
                         <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
                         Xuất báo cáo
                     </button>
+                    
+                    <!-- NÚT MỚI: ĐẨY DỮ LIỆU LÊN CỔNG ECDS -->
+                    <a href="daycong.html" class="bg-purple-600 hover:bg-purple-700 text-white font-medium py-2 px-4 rounded transition flex items-center shadow-sm whitespace-nowrap">
+                        <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path></svg>
+                        Đồng bộ ECDS
+                    </a>
+
                     <button onclick="window.openUserModal()" class="bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded transition shadow-sm flex items-center whitespace-nowrap">
                         <svg class="w-5 h-5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path></svg>
                         Thêm nhân viên
@@ -352,7 +359,14 @@
                                 </div>
                                 <div>
                                     <label class="block text-sm font-medium text-gray-700 mb-1">Đơn vị chuyển tới</label>
-                                    <input type="text" id="don_vi_chuyen_toi" class="w-full border border-gray-300 rounded p-2 focus:border-blue-500 outline-none">
+                                    <div class="relative cursor-pointer">
+                                        <input type="text" id="don_vi_chuyen_toi_hien_thi" autocomplete="off" placeholder="Gõ tìm đơn vị..." class="w-full border border-gray-300 rounded p-2 focus:border-blue-500 outline-none transition-colors pr-8">
+                                        <div class="absolute inset-y-0 right-0 flex items-center pr-2 pointer-events-none">
+                                            <svg class="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                                        </div>
+                                    </div>
+                                    <div id="donViDropdown" class="dropdown-list"></div>
+                                    <input type="hidden" id="don_vi_chuyen_toi">
                                 </div>
                                 <div>
                                     <label class="block text-sm font-medium text-gray-700 mb-1">Tình trạng khác</label>
@@ -599,6 +613,7 @@
         let danhMucNgheNghiep = [];
         let danhMucBenh = [];
         let danhSachXaCuaTinh = [];
+        let danhMucDonVi = [];
 
         window.showToast = function(message, type = 'success') {
             const toast = document.getElementById('toast');
@@ -921,6 +936,8 @@
                 danhMucBenh = await window.fetchAllSupabaseData('dm_benh_truyen_nhiem');
                 if(!danhMucBenh || danhMucBenh.length === 0) danhMucBenh = await window.fetchAllSupabaseData('dm_benhtruyennhiem');
                 
+                danhMucDonVi = await window.fetchAllSupabaseData('dm_donvi');
+                
             } catch (error) {
                 window.showToast("Có lỗi khi tải danh mục gốc", "error");
                 console.error("loadMasterData Error:", error);
@@ -1183,6 +1200,8 @@
                 document.getElementById('xa_phuong').value = '';
                 document.getElementById('chan_doan_chinh').value = '';
                 document.getElementById('cap_do_benh').value = '';
+                document.getElementById('don_vi_chuyen_toi_hien_thi').value = '';
+                document.getElementById('don_vi_chuyen_toi').value = '';
                 
                 document.getElementById('ngay_sinh').dispatchEvent(new Event('change'));
                 document.getElementById('dieu_tri_vaccine').dispatchEvent(new Event('change'));
@@ -1257,7 +1276,15 @@
             document.getElementById('dieu_tri_vaccine').value = data.dieu_tri_vaccine || '';
             document.getElementById('so_lan_tiem').value = data.so_lan_tiem || '';
             document.getElementById('chan_doan_ra_vien').value = data.chan_doan_ra_vien || '';
+            
             document.getElementById('don_vi_chuyen_toi').value = data.don_vi_chuyen_toi || '';
+            let tenDonViHienThi = data.don_vi_chuyen_toi || '';
+            if (danhMucDonVi && danhMucDonVi.length > 0) {
+                let foundDV = danhMucDonVi.find(dv => dv.ma_don_vi === data.don_vi_chuyen_toi);
+                if (foundDV) tenDonViHienThi = foundDV.ten_don_vi;
+            }
+            document.getElementById('don_vi_chuyen_toi_hien_thi').value = tenDonViHienThi;
+            
             document.getElementById('tinh_trang_khac').value = data.tinh_trang_khac || '';
             
             document.getElementById('lay_mau_xn').value = data.lay_mau_xn || '';
@@ -1345,14 +1372,25 @@
             // TÌNH TRẠNG HIỆN TẠI (Bắt buộc chẩn đoán ra viện)
             const tinhTrangSelect = document.getElementById('tinh_trang_hien_tai');
             const chanDoanRaVienInput = document.getElementById('chan_doan_ra_vien');
+            const donViChuyenToiHienThi = document.getElementById('don_vi_chuyen_toi_hien_thi');
+            
             tinhTrangSelect.addEventListener('change', function() {
-                if (this.value === 'Ra viện' || this.value.includes('Ra viện')) {
+                if (this.value === 'Ra viện' || this.value.includes('Ra viện') || this.value.includes('3')) {
                     chanDoanRaVienInput.required = true;
                     chanDoanRaVienInput.parentElement.querySelector('label').innerHTML = 'Chẩn đoán ra viện <span class="text-red-500">*</span>';
                 } else {
                     chanDoanRaVienInput.required = false;
                     chanDoanRaVienInput.parentElement.querySelector('label').innerHTML = 'Chẩn đoán ra viện';
                     chanDoanRaVienInput.classList.remove('border-red-500', 'ring-red-200');
+                }
+
+                if (this.value === 'Chuyển viện' || this.value.includes('Chuyển viện') || this.value.includes('4')) {
+                    donViChuyenToiHienThi.required = true;
+                    donViChuyenToiHienThi.parentElement.parentElement.querySelector('label').innerHTML = 'Đơn vị chuyển tới <span class="text-red-500">*</span>';
+                } else {
+                    donViChuyenToiHienThi.required = false;
+                    donViChuyenToiHienThi.parentElement.parentElement.querySelector('label').innerHTML = 'Đơn vị chuyển tới';
+                    donViChuyenToiHienThi.classList.remove('border-red-500', 'ring-red-200');
                 }
             });
 
@@ -1523,6 +1561,15 @@
                     const keys = Object.keys(item);
                     return item.ten_nghe || item[keys.find(k => k.toLowerCase().includes('nghe'))] || item[keys[keys.length-1]] || '';
                 }
+            );
+
+            window.setupFuzzySearch('don_vi_chuyen_toi_hien_thi', 'donViDropdown', () => danhMucDonVi, 
+                (item, search) => highlightText(item.ten_don_vi || item.ten || '', search), 
+                item => { 
+                    document.getElementById('don_vi_chuyen_toi_hien_thi').value = item.ten_don_vi || item.ten || ''; 
+                    document.getElementById('don_vi_chuyen_toi').value = item.ma_don_vi || item.ma || ''; 
+                },
+                item => item.ten_don_vi || item.ten || ''
             );
         };
     </script>
