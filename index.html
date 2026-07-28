@@ -275,8 +275,10 @@
                                 <input type="text" id="noi_lam_viec" placeholder="Tên công ty, trường học..." class="w-full border border-gray-300 rounded p-2 focus:ring-2 focus:ring-blue-500 outline-none">
                             </div>
                             <div class="md:col-span-1">
-                                <label class="block text-sm font-medium text-gray-700 mb-1">Điện thoại liên hệ (13)</label>
-                                <input type="tel" id="dien_thoai" placeholder="Nhập số điện thoại bệnh nhân" class="w-full border border-gray-300 rounded p-2 focus:ring-2 focus:ring-blue-500 outline-none">
+                                <!-- Thêm thẻ span chứa dấu * đỏ vào label -->
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Điện thoại liên hệ (13) <span class="text-red-500">*</span></label>
+                                <!-- Thêm 'required' vào input -->
+                                <input type="tel" id="dien_thoai" required oninput="this.value = this.value.replace(/[^0-9]/g, '')" placeholder="Nhập số điện thoại bệnh nhân" class="w-full border border-gray-300 rounded p-2 focus:ring-2 focus:ring-blue-500 outline-none">
                             </div>
                             <!-- Thêm trường Ghi chú -->
                             <div class="md:col-span-3">
@@ -412,7 +414,14 @@
                                 <label class="block text-sm font-medium text-gray-700 mb-1">Tên xét nghiệm cụ thể</label>
                                 <input type="text" id="ten_xn_cu_the" class="w-full border border-gray-300 rounded p-2 focus:ring-2 focus:ring-blue-500 outline-none">
                             </div>
-
+                            <div id="container_ngay_lay_mau">
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Ngày lấy mẫu (23) <span class="text-red-500">*</span></label>
+                                <input type="date" id="ngay_lay_mau" class="w-full border border-gray-300 rounded p-2 focus:ring-2 focus:ring-blue-500 outline-none">
+                            </div>
+                            <div id="container_ngay_ket_qua_xn">
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Ngày kết quả XN</label>
+                                <input type="date" id="ngay_ket_qua_xn" class="w-full border border-gray-300 rounded p-2 focus:ring-2 focus:ring-blue-500 outline-none">
+                            </div>
                             <hr class="md:col-span-2 my-2 border-gray-200">
                             
                             <div>
@@ -1147,13 +1156,15 @@
                 dieu_tri_vaccine: document.getElementById('dieu_tri_vaccine').value,
                 so_lan_tiem: document.getElementById('so_lan_tiem').value ? parseInt(document.getElementById('so_lan_tiem').value) : null,
                 chan_doan_ra_vien: document.getElementById('chan_doan_ra_vien').value,
-                don_vi_chuyen_toi: document.getElementById('don_vi_chuyen_toi').value,
+                don_vi_chuyen_toi: document.getElementById('don_vi_chuyen_toi').value || document.getElementById('don_vi_chuyen_toi_hien_thi').value,
                 tinh_trang_khac: document.getElementById('tinh_trang_khac').value,
                 
                 lay_mau_xn: document.getElementById('lay_mau_xn').value,
                 loai_xn: document.getElementById('loai_xn').value,
                 ket_qua_xn: document.getElementById('ket_qua_xn').value,
                 ten_xn_cu_the: document.getElementById('ten_xn_cu_the').value,
+                ngay_lay_mau: window.formatDDMMYYYY(document.getElementById('ngay_lay_mau').value),
+                ngay_ket_qua_xn: window.formatDDMMYYYY(document.getElementById('ngay_ket_qua_xn').value),
                 
                 ngay_khoi_phat: window.formatDDMMYYYY(document.getElementById('ngay_khoi_phat').value),
                 ngay_nhap_vien: window.formatDDMMYYYY(document.getElementById('ngay_nhap_vien').value),
@@ -1291,6 +1302,8 @@
             document.getElementById('loai_xn').value = data.loai_xn || '';
             document.getElementById('ket_qua_xn').value = data.ket_qua_xn || '';
             document.getElementById('ten_xn_cu_the').value = data.ten_xn_cu_the || '';
+            document.getElementById('ngay_lay_mau').value = window.formatYYYYMMDD(data.ngay_lay_mau);
+            document.getElementById('ngay_ket_qua_xn').value = window.formatYYYYMMDD(data.ngay_ket_qua_xn);
             
             document.getElementById('ngay_khoi_phat').value = window.formatYYYYMMDD(data.ngay_khoi_phat);
             document.getElementById('ngay_nhap_vien').value = window.formatYYYYMMDD(data.ngay_nhap_vien);
@@ -1437,18 +1450,25 @@
             // XÉT NGHIỆM
             const layMauSelect = document.getElementById('lay_mau_xn');
             const xnFields = [
-                { input: document.getElementById('loai_xn'), container: document.getElementById('container_loai_xn') },
-                { input: document.getElementById('ket_qua_xn'), container: document.getElementById('container_ket_qua_xn') },
-                { input: document.getElementById('ten_xn_cu_the'), container: document.getElementById('container_ten_xn') }
+                { input: document.getElementById('loai_xn'), container: document.getElementById('container_loai_xn'), isRequired: false },
+                { input: document.getElementById('ket_qua_xn'), container: document.getElementById('container_ket_qua_xn'), isRequired: false },
+                { input: document.getElementById('ten_xn_cu_the'), container: document.getElementById('container_ten_xn'), isRequired: false },
+                { input: document.getElementById('ngay_lay_mau'), container: document.getElementById('container_ngay_lay_mau'), isRequired: true },
+                { input: document.getElementById('ngay_ket_qua_xn'), container: document.getElementById('container_ngay_ket_qua_xn'), isRequired: false }
             ];
 
             layMauSelect.addEventListener('change', function() {
-                const isNo = this.value.includes('Không') || this.value === '2. Không';
+                const isYes = this.value.includes('Có') || this.value === '1. Có';
                 xnFields.forEach(field => {
-                    if (isNo) {
-                        field.container.style.display = 'none'; field.input.required = false; field.input.value = ''; 
+                    if (!isYes) {
+                        // Khi KHÔNG lấy mẫu hoặc rỗng: Ẩn đi và bỏ bắt buộc
+                        field.container.style.display = 'none'; 
+                        field.input.required = false; 
+                        field.input.value = ''; 
                     } else {
+                        // Khi CÓ lấy mẫu: Hiện lên và set required nếu cần thiết
                         field.container.style.display = 'block';
+                        if (field.isRequired) field.input.required = true;
                     }
                 });
             });
