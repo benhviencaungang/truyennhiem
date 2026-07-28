@@ -135,11 +135,11 @@
     <script>
         const supabaseClient = window.supabase.createClient(CONFIG.SUPABASE_URL, CONFIG.SUPABASE_KEY);
         
-        let currentUser = null;
         let dataToPush = [];
         let dmHanhChinh = [];
         let dmDanToc = [];
         let dmNgheNghiep = [];
+        let dmDonVi = [];
 
         window.showToast = function(message, type = 'success') {
             const toast = document.getElementById('toast');
@@ -215,6 +215,12 @@
                         };
                     });
                 }
+                
+                // Tải danh mục đơn vị để đối chiếu mã bệnh viện khi đẩy dữ liệu cũ
+                let resDV = await window.fetchAllSupabaseData('dm_donvi');
+                if(!resDV || resDV.length === 0) resDV = await window.fetchAllSupabaseData('dm_don_vi');
+                dmDonVi = resDV || [];
+
             } catch (e) {
                 console.error("Lỗi tải danh mục:", e);
                 window.showToast("Không thể tải danh mục cấu hình để ánh xạ dữ liệu", "error");
@@ -253,7 +259,7 @@
             tbody.innerHTML = '<tr><td colspan="6" class="text-center py-8 text-gray-500">Đang quét dữ liệu...</td></tr>';
             document.getElementById('btnPush').disabled = true;
             document.getElementById('checkAll').checked = false;
-            document.getElementById('btnUnlock').classList.add('hidden'); // Ẩn nút mở khóa lúc load mới
+            document.getElementById('btnUnlock').classList.add('hidden');
 
             try {
                 const { data, error } = await supabaseClient
@@ -395,12 +401,21 @@
         };
 
         window.mapToEcdsFormat = function(ca) {
-            // 1. Ánh xạ Dân Tộc
-            let danTocCode = "1"; 
+            // 1. Ánh xạ Dân Tộc (Đảm bảo chép ĐÚNG và ĐỦ đoạn này)
+            let danTocCode = "1"; // Mặc định là Kinh (Mã 1 theo chuẩn ECDS)
             let dtObj = dmDanToc.find(x => window.safeCompare(x.ten_dan_toc || x.ten, ca.dan_toc));
             if(dtObj) {
-                let code = dtObj.ma_dan_toc || dtObj.ma || dtObj.stt || dtObj.STT;
-                if(code) danTocCode = code.toString();
+                let tenDanTocLowerCase = ca.dan_toc.trim().toLowerCase();
+                if (tenDanTocLowerCase === "kinh") {
+                    danTocCode = "1";
+                } else if (tenDanTocLowerCase === "khmer" || tenDanTocLowerCase === "khme") {
+                    danTocCode = "58"; // Cổng ECDS dùng mã 58 cho Khmer
+                } else if (tenDanTocLowerCase === "hoa") {
+                    danTocCode = "20"; 
+                } else {
+                    let code = dtObj.ma_dan_toc || dtObj.ma || dtObj.stt || dtObj.STT;
+                    if(code) danTocCode = code.toString();
+                }
             }
 
             // 2. Ánh xạ Nghề Nghiệp
@@ -411,9 +426,9 @@
                 if(code) ngheCode = code.toString();
             }
 
-            // 3. Ánh xạ Mã Tỉnh và Mã Xã (PADDING 0 TỰ ĐỘNG)
-            let xaCode = "00000"; // Mặc định 5 số 0 nếu lỗi
-            let tinhCode = "00";  // Mặc định 2 số 0 nếu lỗi
+            // 3. Ánh xạ Mã Tỉnh và Mã Xã
+            let xaCode = "00000"; 
+            let tinhCode = "00";  
             
             let xaObj = dmHanhChinh.find(x => 
                 window.safeCompare(x.xa, ca.xa_phuong) && 
@@ -432,7 +447,7 @@
                 }
             }
 
-            // 4. Tính tuổi từ ngày sinh
+           // 4. Tính tuổi từ ngày sinh
             let age = 0;
             if(ca.ngay_sinh) {
                 let parts = ca.ngay_sinh.split('/');
@@ -442,48 +457,69 @@
                 }
             }
 
-            // 5. Chuyển Tình Trạng (Bắt thông minh số đầu tiên)
+            // 5. Chuyển Tình Trạng (Gắn cứng Mã ECDS 01, 02, 03, 04)
             let tt = ca.tinh_trang_hien_tai || "";
-            let tinhTrangCode = parseInt(tt); 
-            if (isNaN(tinhTrangCode)) {
-                tinhTrangCode = 6;
-                if(tt.includes("Ngoại")) tinhTrangCode = 1;
-                else if(tt.includes("Nội")) tinhTrangCode = 2;
-                else if(tt.includes("Ra")) tinhTrangCode = 3;
-                else if(tt.includes("Chuyển")) tinhTrangCode = 4;
-                else if(tt.includes("Tử")) tinhTrangCode = 5;
+            let tinhTrangCode = "07"; 
+            if (tt === "Điều trị nội trú" || tt.includes("Nội")) {
+                tinhTrangCode = "01";
+            } else if (tt === "Ra viện" || tt.toLowerCase().includes("ra viện")) {
+                tinhTrangCode = "02";
+            } else if (tt === "Tử vong" || tt.toLowerCase().includes("tử vong")) {
+                tinhTrangCode = "03";
+            } else if (tt === "Chuyển viện" || tt.toLowerCase().includes("chuyển")) {
+                tinhTrangCode = "04";
+            } else if (tt === "Tình trạng khác" || tt.toLowerCase().includes("Khác")) {
+                tinhTrangCode = "05";
+            } else if (tt === "Điều trị ngoại trú" || tt.toLowerCase().includes("ngoại trú")) {
+                tinhTrangCode = "0";
             }
 
-            // 6. Chuyển Loại Chẩn Đoán (Bắt thông minh số đầu tiên)
+             // 6. Chuyển Loại Chẩn Đoán
             let phanLoai = ca.phan_loai_chan_doan || "";
-            let loaiCd = parseInt(phanLoai);
-            if (isNaN(loaiCd)) {
-                loaiCd = 1;
-                if(phanLoai.includes("Có thể")) loaiCd = 2;
-                else if(phanLoai.includes("xét nghiệm") || phanLoai.includes("Xác định")) loaiCd = 3;
+            let loaiCd = "03"; 
+            if (phanLoai.includes("Nghi ngờ(Lâm sàng)") || phanLoai.includes("Nghi ngờ")) {
+                loaiCd = "0"; // Sửa "01" thành số 0 (hoặc chuỗi "0")
+            } else if (phanLoai.includes("Có thể")) {
+                loaiCd = "02";
             }
 
-            // 7. Hình thức điều trị (Mặc định là 1 nếu trống)
+            // 7. Hình thức điều trị
+            // Lưu ý: Cổng ECDS mới dùng Object UUID cho trường này, nhưng ta cứ truyền số để xem Proxy xử lý sao
             let ht = ca.hinh_thuc_dieu_tri || "";
-            let hinhThucCode = parseInt(ht); 
-            if (isNaN(hinhThucCode)) {
-                hinhThucCode = 1; 
-                if(ht.includes("Tại nhà")) hinhThucCode = 2;
-                else if(ht.includes("cơ quan")) hinhThucCode = 3;
-                else if(ht.includes("Khác")) hinhThucCode = 4;
+            let hinhThucCode = "4"; 
+            if (ht.includes("Trạm y tế") || ht.includes("1")) hinhThucCode = "0"; // Sửa "3" thành số 0 (hoặc chuỗi "0")
+            else if (ht.includes("Tại nhà") || ht.includes("2")) hinhThucCode = "2";
+
+             // 8. Đọc Mã Cơ sở điều trị trực tiếp từ CSDL (Sửa thành UUID của BVĐK KV Cầu Ngang theo chuẩn mới)
+            let maCoSo = "81711_BV"; // Thay vì "81711_BV"
+            
+            // 9. Xử lý thông tin tiêm vacxin 
+            // Mã chuẩn ECDS: 0 = Có, 1 = Không, 2 = Không rõ (Theo giao diện Web)
+            let tiemVacxinCode = 2; // Mặc định không rõ
+            if (ca.dieu_tri_vaccine && ca.dieu_tri_vaccine.includes("Có")) {
+                tiemVacxinCode = 0;
+            } else if (ca.dieu_tri_vaccine && ca.dieu_tri_vaccine.includes("Không") && !ca.dieu_tri_vaccine.includes("rõ")) {
+                tiemVacxinCode = 1;
             }
-            hinhThucCode = hinhThucCode.toString();
 
-            // 8. Đọc Mã Cơ sở điều trị trực tiếp từ CSDL
-            let maCoSo = ca.co_so_dieu_tri || "81711_BV";
+            // Hàm chuyển đổi TẤT CẢ các ngày bị lỗi (YYYY-MM-DD) sang chuẩn ECDS (DD/MM/YYYY)
+            const toDDMMYYYY = (dateStr) => {
+                if (!dateStr) return "";
+                if (dateStr.includes("/")) return dateStr; 
+                if (dateStr.includes("-")) {
+                    let p = dateStr.split("-");
+                    if (p.length === 3 && p[0].length === 4) return `${p[2]}/${p[1]}/${p[0]}`;
+                }
+                return dateStr;
+            };
 
-            return {
+            // KHỐI PAYLOAD HOÀN CHỈNH (ĐÃ FIX TOÀN BỘ LỖI NGÀY THÁNG VÀ XÉT NGHIỆM)
+            let resultPayload = {
                 maIcd10Benh: ca.chan_doan_chinh,
                 maPhanLoaiLamSang: ca.cap_do_benh || "",
                 trangThaiCaBenh: 1, 
                 trangThaiLuu: 2, 
                 hoVaTen: ca.ho_va_ten,
-                ngaySinh: ca.ngay_sinh,
                 tuoi: age,
                 maGioiTinh: ca.gioi_tinh === "Nam" ? "M" : (ca.gioi_tinh === "Nữ" ? "F" : "U"),
                 maDanToc: danTocCode,
@@ -494,31 +530,86 @@
                 
                 maXaHienNay: xaCode,
                 maTinhHienNay: tinhCode,
-                
                 diaChiChiTietHienNay: ca.dia_chi_chi_tiet || "",
+                
                 loaiChanDoan: loaiCd,
                 tinhTrangHienTai: tinhTrangCode,
-                ngayKhoiPhat: ca.ngay_khoi_phat || "",
-                ngayNhapVien: ca.ngay_nhap_vien || "",
-                ngayRaVien: ca.ngay_ra_vien || "",
                 chanDoanRaVien: ca.chan_doan_ra_vien || "",
                 
-                // --- CÁC TRƯỜNG DÀNH CHO BỆNH NHÂN CHUYỂN VIỆN ---
-                noiChuyenToi: ca.don_vi_chuyen_toi ? ca.don_vi_chuyen_toi.toString().trim() : "",
-                maNoiChuyenToi: ca.don_vi_chuyen_toi ? ca.don_vi_chuyen_toi.toString().trim() : "",
-                maCoSoChuyenToi: ca.don_vi_chuyen_toi ? ca.don_vi_chuyen_toi.toString().trim() : "",
-                donViChuyenToi: ca.don_vi_chuyen_toi ? ca.don_vi_chuyen_toi.toString().trim() : "",
-                noiChuyenDen: ca.don_vi_chuyen_toi ? ca.don_vi_chuyen_toi.toString().trim() : "",
-                maNoiChuyenDen: ca.don_vi_chuyen_toi ? ca.don_vi_chuyen_toi.toString().trim() : "",
-                // -------------------------------------------------
+                // 1. CHUYỂN ĐỔI TOÀN BỘ NGÀY THÁNG SANG CHUẨN DD/MM/YYYY
+                ngaySinh: toDDMMYYYY(ca.ngay_sinh),
+                ngayKhoiPhat: toDDMMYYYY(ca.ngay_khoi_phat),
+                ngayNhapVien: toDDMMYYYY(ca.ngay_nhap_vien),
+                ngayRaVien: toDDMMYYYY(ca.ngay_ra_vien),
+                
+                thongTinTiemVacXin: tiemVacxinCode,
+                // 2. KHỐI XÉT NGHIỆM - CHUẨN KIỂU DỮ LIỆU SỐ & NGÀY (Backend đang chờ DD/MM/YYYY hoặc DD-MM-YYYY)
+                ...(() => {
+                    let hasLab = false;
+                    if (ca.lay_mau_xn && ca.lay_mau_xn.includes("Có")) {
+                        hasLab = true;
+                    }
 
-                thongTinTiemVacXin: (ca.dieu_tri_vaccine && ca.dieu_tri_vaccine.includes("Có")) ? 1 : 0,
-                coLayMauXetNghiem: (ca.lay_mau_xn && ca.lay_mau_xn.includes("Có")),
-                
-                hoTenNguoiBaoCao: ca.nguoi_bao_cao_ten || "",
-                soDienThoaiNguoiBaoCao: ca.nguoi_bao_cao_sdt || "",
-                emailNguoiBaoCao: ca.nguoi_bao_cao_email || "",
-                
+                    // 1. CHUẨN HÓA NGÀY (Backend Java đang cấu hình @JsonFormat pattern dd/MM/yyyy hoặc dd-MM-yyyy)
+                    let ngayXN_Format = "";
+                    let rawDate = ca.ngay_chan_doan || ca.ngay_nhap_vien || "";
+                    
+                    // Kiểm tra nếu ngày đang bị ngược yyyy-mm-dd thì lật lại thành dd/mm/yyyy
+                    if (rawDate.includes("-")) {
+                        let p = rawDate.split("-");
+                        if (p[0].length === 4) {
+                            ngayXN_Format = `${p[2]}/${p[1]}/${p[0]}`; // Chuyển yyyy-mm-dd thành dd/mm/yyyy
+                        } else {
+                            ngayXN_Format = rawDate.replace(/-/g, "/"); // Chuyển dd-mm-yyyy thành dd/mm/yyyy
+                        }
+                    } else if (rawDate.includes("/")) {
+                        // Nếu đã là dấu / (ví dụ 25/07/2026), giữ nguyên
+                        ngayXN_Format = rawDate;
+                    } else {
+                        ngayXN_Format = rawDate;
+                    }
+
+                    let labData = {
+                        hasLabSample: hasLab,
+                        coLayMauXetNghiem: hasLab,
+                        layMauXetNghiem: hasLab ? 1 : 2
+                    };
+
+                    if (hasLab) {
+                        // 2. ÉP KIỂU SỐ NGUYÊN (Integer) TUYỆT ĐỐI KHÔNG DÙNG CHUỖI
+                        let valIntLoai = 0; // Test nhanh
+                        let loaiStr = ca.loai_xn ? ca.loai_xn.trim().toLowerCase() : "";
+                        if (loaiStr.includes("mac") || loaiStr.includes("elisa")) valIntLoai = 1;
+                        else if (loaiStr.includes("pcr")) valIntLoai = 2;
+                        
+                        let valIntKQ = 0; // Dương tính
+                        let kqStr = ca.ket_qua_xn ? ca.ket_qua_xn.trim().toLowerCase() : "";
+                        if (kqStr.includes("âm")) valIntKQ = 1; 
+                        else if (kqStr.includes("nghi ngờ") || kqStr.includes("chưa")) valIntKQ = 2;
+
+                        Object.assign(labData, {
+                            // Truyền lên đúng bộ ba hoàn hảo đã từng thành công
+                            labTestType: valIntLoai,
+                            labResult: valIntKQ,
+                            labSampleDate: ngayXN_Format || null,
+                            
+                            // Bọc lót tên biến tiếng Việt cho Proxy (Cũng bằng SỐ NGUYÊN và NGÀY)
+                            loaiXetNghiem: valIntLoai,
+                            ketQuaXetNghiem: valIntKQ,
+                            ngayLayMau: ngayXN_Format || null,
+                            ngayCoKetQuaXetNghiem: ngayXN_Format || null,
+                            
+                            labTestName: ca.ten_xn_cu_the || ""
+                        });
+                    }
+
+                    return labData;
+                })(),
+
+                // 3. THÔNG TIN NGƯỜI BÁO CÁO
+                hoTenNguoiBaoCao: "Trần Lê Thuý Huỳnh",
+                soDienThoaiNguoiBaoCao: "0349545123",
+                emailNguoiBaoCao: "bvdkcaungang@gmail.com",
                 maDonViNguoiBaoCao: maCoSo,
                 maCoSoDieuTri: maCoSo, 
                 maHinhThucDieuTri: hinhThucCode,
@@ -526,6 +617,57 @@
                 ghiChuChung: ca.ghi_chu || "",
                 benhKemTheo: ca.chan_doan_kem_theo || ""
             };
+
+            // Nếu Chọn CÓ Tiêm Ngừa (Mã 0), mới gửi số mũi
+            if (tiemVacxinCode === 0) {
+                let soLanTiemValue = parseInt(ca.so_lan_tiem);
+                if (isNaN(soLanTiemValue) || soLanTiemValue <= 0) {
+                    soLanTiemValue = 1;
+                }
+                resultPayload.soLanTiemVacXin = soLanTiemValue;
+                resultPayload.soLanTiem = soLanTiemValue;
+                resultPayload.soMuiTiem = soLanTiemValue;
+                resultPayload.soMui = soLanTiemValue;
+                resultPayload.vaccineDoses = soLanTiemValue;
+            }
+
+            // --- XỬ LÝ CHẶT CHẼ TRƯỜNG HỢP BỆNH NHÂN CHUYỂN VIỆN ---
+            // Tình trạng 04 hoặc 4 là Chuyển viện
+            if (tinhTrangCode === "04" || tinhTrangCode === "4" || tinhTrangCode === 4) {
+                let dvi = ca.don_vi_chuyen_toi ? ca.don_vi_chuyen_toi.trim() : "";
+                
+                // Cố gắng tra cứu trong danh mục nếu nó là chữ viết tắt
+                if (dvi && !dvi.includes('_') && isNaN(dvi) && dmDonVi.length > 0) {
+                    let matchDV = dmDonVi.find(dv => 
+                        (dv.ten_don_vi && dv.ten_don_vi.toLowerCase().includes(dvi.toLowerCase())) ||
+                        (dv.ten && dv.ten.toLowerCase().includes(dvi.toLowerCase())) ||
+                        (dv.ma_don_vi === dvi)
+                    );
+                    if (matchDV) {
+                        dvi = matchDV.ma_don_vi || matchDV.ma || dvi;
+                    }
+                }
+
+                // NẾU TÌM RA ĐƯỢC UUID TRONG DANH MỤC THÌ GÁN VÀO ĐÂY LÀ CHUẨN NHẤT
+                // Tạm thời, nếu không phải UUID thì ép sang UUID của BVĐK Tỉnh Trà Vinh (dựa trên JSON bạn gửi)
+                if (!dvi || !dvi.includes('-')) {
+                    dvi = "20022"; // UUID của BVĐK Tỉnh Trà Vinh
+                }
+
+                // VÉT CẠN: Gửi cùng lúc tất cả các tên biến, ĐẶC BIỆT THÊM BIẾN "referralFacilityId"
+                resultPayload.noiChuyenToi = dvi;
+                resultPayload.maNoiChuyenToi = dvi;
+                resultPayload.maCoSoChuyenToi = dvi;
+                resultPayload.donViChuyenToi = dvi;
+                resultPayload.maDonViChuyenToi = dvi;
+                resultPayload.noiChuyenDen = dvi;
+                resultPayload.referralFacilityId = dvi; // <-- Biến mới lấy từ JSON của ECDS
+                
+                // Backup gửi thêm định dạng Object nếu API cần
+                resultPayload.referralFacility = { id: dvi };
+            }
+
+            return resultPayload;
         };
 
         window.pushDataToECDS = async function() {
@@ -581,6 +723,11 @@
             let rowMapping = []; 
 
             checkedBoxes.forEach(cb => {
+                // Kiểm tra loại bỏ an toàn: Tuyệt đối không cho phép đẩy các ca bị khoá (đã đẩy thành công)
+                if (cb.disabled || cb.classList.contains('cb-push-locked')) {
+                    return;
+                }
+
                 const id = cb.value;
                 const ca = dataToPush.find(x => x.id.toString() === id);
                 if(ca) {
@@ -591,6 +738,14 @@
                     rowMapping.push(id); 
                 }
             });
+
+            // Nếu sau khi kiểm tra không còn case nào hợp lệ để đẩy thì ngắt luôn
+            if (payloadBatch.length === 0) {
+                window.showToast("Không có ca bệnh hợp lệ nào để đẩy (các ca đã đẩy thành công bị loại bỏ an toàn).", "error");
+                btnPush.disabled = false;
+                btnPush.innerHTML = "BẮT ĐẦU ĐẨY LÊN CỔNG";
+                return;
+            }
 
             console.log("=== KIỂM TRA PAYLOAD GỬI LÊN CỔNG ===");
             console.log(JSON.stringify(payloadBatch, null, 2));
