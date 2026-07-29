@@ -106,6 +106,11 @@
                 <button onclick="window.handleLogout()" class="bg-blue-800 hover:bg-blue-900 text-white font-medium py-1.5 px-4 rounded text-sm transition shadow-sm border border-blue-600">
                     Đăng xuất
                 </button>
+                <!-- Thêm nút đổi mật khẩu -->
+                <button onclick="window.openChangePasswordModal()" class="bg-gray-600 hover:bg-gray-700 text-white font-medium py-1.5 px-3 rounded text-sm transition shadow-sm flex items-center">
+                    <svg class="w-4 h-4 mr-1 hidden sm:block" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"></path></svg>
+                    Đổi mật khẩu
+                </button>
             </div>
         </header>
 
@@ -406,7 +411,7 @@
                                     <option value="">-- Chọn --</option>
                                     <option value="Dương tính">1. Dương tính</option>
                                     <option value="Âm tính">2. Âm tính</option>
-                                    <option value="Nghi ngờ">3. Nghi ngờ</option>
+                                    <option value="Không thực hiện">3.Không thực hiện XN</option>
                                     <option value="Chưa có kết quả">4. Chưa có kết quả</option>
                                 </select>
                             </div>
@@ -585,6 +590,94 @@
     </div>
     
     <!-- Hộp thoại Tùy chỉnh thay thế confirm() -->
+    <!-- MODAL ĐỔI MẬT KHẨU CHO NHÂN VIÊN -->
+    <div id="changePasswordModal" class="fixed inset-0 hidden z-50 flex items-center justify-center">
+        <!-- Nền mờ -->
+        <div class="absolute inset-0 bg-black bg-opacity-50" onclick="window.closeChangePasswordModal()"></div>
+        
+        <!-- Nội dung modal -->
+        <div class="bg-white rounded-lg shadow-2xl w-[400px] max-w-[95%] m-4 relative z-10 modal-enter flex flex-col">
+            <div class="flex justify-between items-center p-5 border-b border-gray-200">
+                <h3 class="text-xl font-bold text-gray-800 flex items-center">
+                    <svg class="w-5 h-5 mr-2 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"></path></svg>
+                    Đổi Mật Khẩu
+                </h3>
+                <button onclick="window.closeChangePasswordModal()" class="text-gray-400 hover:text-red-500 transition focus:outline-none">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                </button>
+            </div>
+            
+            <div class="p-5">
+                <form id="changePasswordForm" class="space-y-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Mật khẩu cũ <span class="text-red-500">*</span></label>
+                        <input type="password" id="oldPassword" required placeholder="Nhập mật khẩu hiện tại" class="w-full border border-gray-300 rounded-md p-2.5 focus:ring-2 focus:ring-blue-500 outline-none">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Mật khẩu mới <span class="text-red-500">*</span></label>
+                        <input type="password" id="newPassword" required placeholder="Nhập mật khẩu mới" class="w-full border border-gray-300 rounded-md p-2.5 focus:ring-2 focus:ring-blue-500 outline-none">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Nhập lại mật khẩu mới <span class="text-red-500">*</span></label>
+                        <input type="password" id="confirmNewPassword" required placeholder="Xác nhận lại mật khẩu mới" class="w-full border border-gray-300 rounded-md p-2.5 focus:ring-2 focus:ring-blue-500 outline-none">
+                    </div>
+                </form>
+            </div>
+            
+            <div class="p-5 border-t border-gray-200 flex justify-end space-x-3 bg-gray-50 rounded-b-lg">
+                <button type="button" onclick="window.closeChangePasswordModal()" class="bg-white border border-gray-300 hover:bg-gray-100 text-gray-700 font-medium px-5 py-2.5 rounded-md transition">Hủy</button>
+                <button type="button" onclick="window.submitChangePassword()" class="bg-blue-600 hover:bg-blue-700 text-white font-medium px-6 py-2.5 rounded-md shadow-md transition flex items-center">
+                    Cập nhật
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Hộp thoại Tùy chỉnh thay thế confirm() -->
+    <!-- MODAL ĐỔI MẬT KHẨU CHO NHÂN VIÊN -->
+    <div id="changePasswordModal" class="fixed inset-0 hidden z-50 flex items-center justify-center">
+        <!-- Nền mờ -->
+        <div class="absolute inset-0 bg-black bg-opacity-50" onclick="window.closeChangePasswordModal()"></div>
+        
+        <!-- Nội dung modal -->
+        <div class="bg-white rounded-lg shadow-2xl w-[400px] max-w-[95%] m-4 relative z-10 modal-enter flex flex-col">
+            <div class="flex justify-between items-center p-5 border-b border-gray-200">
+                <h3 class="text-xl font-bold text-gray-800 flex items-center">
+                    <svg class="w-5 h-5 mr-2 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"></path></svg>
+                    Đổi Mật Khẩu
+                </h3>
+                <button onclick="window.closeChangePasswordModal()" class="text-gray-400 hover:text-red-500 transition focus:outline-none">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                </button>
+            </div>
+            
+            <div class="p-5">
+                <form id="changePasswordForm" class="space-y-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Mật khẩu cũ <span class="text-red-500">*</span></label>
+                        <input type="password" id="oldPassword" required placeholder="Nhập mật khẩu hiện tại" class="w-full border border-gray-300 rounded-md p-2.5 focus:ring-2 focus:ring-blue-500 outline-none">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Mật khẩu mới <span class="text-red-500">*</span></label>
+                        <input type="password" id="newPassword" required placeholder="Nhập mật khẩu mới" class="w-full border border-gray-300 rounded-md p-2.5 focus:ring-2 focus:ring-blue-500 outline-none">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Nhập lại mật khẩu mới <span class="text-red-500">*</span></label>
+                        <input type="password" id="confirmNewPassword" required placeholder="Xác nhận lại mật khẩu mới" class="w-full border border-gray-300 rounded-md p-2.5 focus:ring-2 focus:ring-blue-500 outline-none">
+                    </div>
+                </form>
+            </div>
+            
+            <div class="p-5 border-t border-gray-200 flex justify-end space-x-3 bg-gray-50 rounded-b-lg">
+                <button type="button" onclick="window.closeChangePasswordModal()" class="bg-white border border-gray-300 hover:bg-gray-100 text-gray-700 font-medium px-5 py-2.5 rounded-md transition">Hủy</button>
+                <button type="button" onclick="window.submitChangePassword()" class="bg-blue-600 hover:bg-blue-700 text-white font-medium px-6 py-2.5 rounded-md shadow-md transition flex items-center">
+                    Cập nhật
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Hộp thoại Tùy chỉnh thay thế confirm() -->
     <div id="customConfirm" class="fixed inset-0 hidden z-[9999] flex items-center justify-center">
         <div class="absolute inset-0 bg-black bg-opacity-50"></div>
         <div class="bg-white rounded-lg shadow-2xl p-6 w-[400px] max-w-[90%] relative z-10 modal-enter text-center">
@@ -599,7 +692,6 @@
             </div>
         </div>
     </div>
-
     <!-- Toast Thông Báo -->
     <div id="toast" class="fixed top-5 right-5 text-white font-medium px-6 py-3 rounded-md shadow-lg transition-all duration-300 transform translate-x-full opacity-0 hidden z-[9999] flex items-center">
         <span id="toastIcon" class="mr-2"></span>
@@ -766,7 +858,58 @@
             sessionStorage.removeItem('editReportId');
             window.location.reload();
         };
+        // Lệnh mở Modal Đổi Mật Khẩu
+        window.openChangePasswordModal = function() {
+            document.getElementById('changePasswordForm').reset();
+            document.getElementById('changePasswordModal').classList.remove('hidden');
+        };
 
+        // Lệnh đóng Modal Đổi Mật Khẩu
+        window.closeChangePasswordModal = function() {
+            document.getElementById('changePasswordModal').classList.add('hidden');
+        };
+
+        // Xử lý logic lưu mật khẩu
+        window.submitChangePassword = async function() {
+            const form = document.getElementById('changePasswordForm');
+            if(!form.checkValidity()) {
+                form.reportValidity();
+                return;
+            }
+
+            const oldPass = document.getElementById('oldPassword').value;
+            const newPass = document.getElementById('newPassword').value;
+            const confirmPass = document.getElementById('confirmNewPassword').value;
+
+            // 1. Kiểm tra mật khẩu cũ có khớp với dữ liệu đăng nhập không
+            if (oldPass !== currentUser.pass) {
+                window.showToast("Mật khẩu cũ không chính xác!", "error");
+                return;
+            }
+
+            // 2. Kiểm tra mật khẩu mới nhập 2 lần có giống nhau không
+            if (newPass !== confirmPass) {
+                window.showToast("Mật khẩu mới không khớp nhau!", "error");
+                return;
+            }
+
+            // 3. Tiến hành cập nhật lên Supabase
+            const { error } = await supabaseClient
+                .from('nhanvien')
+                .update({ pass: newPass })
+                .eq('id', currentUser.id);
+
+            if (error) {
+                window.showToast("Lỗi khi đổi mật khẩu: " + error.message, "error");
+            } else {
+                // Cập nhật mật khẩu trong Session hiện tại để không bị văng đăng xuất
+                currentUser.pass = newPass;
+                sessionStorage.setItem('userSession', JSON.stringify(currentUser));
+                
+                window.showToast("Đổi mật khẩu thành công!", "success");
+                window.closeChangePasswordModal();
+            }
+        };
         window.toggleAdminPanel = function() {
             if(currentUser.quyen !== 'admin') {
                 window.showToast("Bạn không có quyền truy cập chức năng này!", "error");
