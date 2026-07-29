@@ -530,14 +530,7 @@
                 }
                 return dateStr;
             };
-            let cccdValue = ca.cmnd ? ca.cmnd.toString().trim() : "";
-            let khongThuThapCccd = false;
 
-            // Nếu CCCD nhập là 0 thì set rỗng/null và bật cờ không thu thập được
-            if (cccdValue === "0") {
-                cccdValue = null;
-                khongThuThapCccd = true;
-            }
             // KHỐI PAYLOAD HOÀN CHỈNH (ĐÃ FIX TOÀN BỘ LỖI NGÀY THÁNG VÀ XÉT NGHIỆM)
             let resultPayload = {
                 maIcd10Benh: ca.chan_doan_chinh,
@@ -550,9 +543,7 @@
                 maDanToc: danTocCode,
                 maNgheNghiep: ngheCode,
                 noiLamViec: ca.noi_lam_viec || "",
-                soCccdCmnd: cccdValue,
-                identityNumber: cccdValue,
-                identityNumberNotAvailable: khongThuThapCccd,
+                soCccdCmnd: (ca.cmnd && ca.cmnd.trim() !== "") ? ca.cmnd : "000000000000",
                 soDienThoai: ca.dien_thoai || "",
                 
                 maXaHienNay: xaCode,
