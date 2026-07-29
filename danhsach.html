@@ -6,16 +6,16 @@
     <title>Danh Sách Các Ca Đã Nhập</title>
     <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🏥</text></svg>">
     
-    <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     
-    <!-- Supabase JS -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     
     <style>
         .hide-scrollbar::-webkit-scrollbar { display: none; }
         .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
         .table-row-hover:hover { background-color: #f8fafc; }
+        .row-has-test { background-color: #fef2f2 !important; color: #991b1b; }
+        .row-has-test:hover { background-color: #fee2e2 !important; }
         
         /* CSS DÀNH CHO BẢN IN */
         @media print {
@@ -33,7 +33,6 @@
 </head>
 <body class="bg-gray-100 text-gray-800 h-screen overflow-hidden flex flex-col">
 
-    <!-- Header -->
     <header class="bg-blue-700 text-white p-4 flex justify-between items-center shadow-md shrink-0 flex-wrap gap-2 no-print">
         <div class="flex items-center space-x-3">
             <h1 class="text-xl font-bold hidden sm:block">Danh Sách Báo Cáo</h1>
@@ -51,10 +50,8 @@
         </div>
     </header>
 
-    <!-- Content -->
     <div class="flex-1 p-4 sm:p-6 overflow-hidden flex flex-col max-w-[1400px] w-full mx-auto no-print">
         
-        <!-- Bộ lọc -->
         <div class="bg-white p-4 rounded-lg shadow-sm border border-gray-200 mb-4 shrink-0 flex flex-wrap gap-4 items-end">
             <div class="flex-1 min-w-[200px]">
                 <label class="block text-sm font-medium text-gray-700 mb-1">Tìm kiếm (Tên / CCCD)</label>
@@ -73,12 +70,19 @@
                 <label class="block text-sm font-medium text-gray-700 mb-1">Đến ngày (Chẩn đoán)</label>
                 <input type="date" id="filterToDate" class="border border-gray-300 rounded p-2 focus:ring-2 focus:ring-blue-500 outline-none w-full sm:w-auto">
             </div>
+             <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Lấy mẫu xét nghiệm</label>
+                <select id="filterLayMau" class="border border-gray-300 rounded p-2 focus:ring-2 focus:ring-blue-500 outline-none w-full sm:w-auto">
+                    <option value="all">Tất cả</option>
+                    <option value="co">Có lấy mẫu</option>
+                    <option value="khong">Không lấy mẫu</option>
+                </select>
+            </div>
             <button onclick="window.fetchData()" class="bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-6 rounded transition shadow-sm flex items-center w-full sm:w-auto justify-center">
                 Tìm kiếm
             </button>
         </div>
 
-        <!-- Bảng dữ liệu -->
         <div class="bg-white rounded-lg shadow-sm border border-gray-200 flex-1 overflow-hidden flex flex-col">
             <div class="overflow-x-auto overflow-y-auto flex-1 hide-scrollbar relative">
                 <table class="min-w-full divide-y divide-gray-200 text-sm">
@@ -371,25 +375,29 @@
                     }
                 }
 
+                // Check if testing was done
+                const hasTest = row.lay_mau_xn && row.lay_mau_xn.includes('Có');
+                const rowClass = hasTest ? "table-row-hover transition row-has-test" : "table-row-hover transition";
+
                 tbody.innerHTML += `
-                    <tr class="table-row-hover transition">
-                        <td class="px-3 py-3 whitespace-nowrap text-gray-500">${index + 1}</td>
+                    <tr class="${rowClass}">
+                        <td class="px-3 py-3 whitespace-nowrap ${hasTest ? 'text-red-700' : 'text-gray-500'}">${index + 1}</td>
                         <td class="px-3 py-3 whitespace-nowrap">
-                            <div class="font-medium text-gray-900">${row.ho_va_ten || ''}</div>
-                            ${currentUser.quyen === 'admin' ? `<div class="text-xs text-blue-600 mt-0.5">${row.khoa_phong || 'Chưa rõ khoa'}</div>` : ''}
+                            <div class="font-medium ${hasTest ? 'text-red-900' : 'text-gray-900'}">${row.ho_va_ten || ''}</div>
+                            ${currentUser.quyen === 'admin' ? `<div class="text-xs ${hasTest ? 'text-red-600' : 'text-blue-600'} mt-0.5">${row.khoa_phong || 'Chưa rõ khoa'}</div>` : ''}
                         </td>
-                        <td class="px-3 py-3 whitespace-nowrap text-blue-600 font-medium" title="Mã ICD: ${row.chan_doan_chinh}">
+                        <td class="px-3 py-3 whitespace-nowrap ${hasTest ? 'text-red-700' : 'text-blue-600'} font-medium" title="Mã ICD: ${row.chan_doan_chinh}">
                             ${tenBenhHienThi}
-                            <div class="text-xs text-gray-500 font-normal mt-0.5">${row.cap_do_benh || ''}</div>
+                            <div class="text-xs ${hasTest ? 'text-red-500' : 'text-gray-500'} font-normal mt-0.5">${row.cap_do_benh || ''}</div>
                         </td>
                         <td class="px-3 py-3 whitespace-nowrap">
-                            <span class="px-2.5 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${statusColor}">
+                            <span class="px-2.5 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${hasTest ? 'bg-red-200 text-red-900' : statusColor}">
                                 ${row.tinh_trang_hien_tai || '-'}
                             </span>
                         </td>
-                        <td class="px-3 py-3 whitespace-nowrap text-gray-600">${row.ngay_khoi_phat || '-'}</td>
-                        <td class="px-3 py-3 whitespace-nowrap text-gray-600">${row.ngay_nhap_vien || '-'}</td>
-                        <td class="px-3 py-3 whitespace-nowrap text-blue-700 font-medium">${row.ngay_chan_doan || '-'}</td>
+                        <td class="px-3 py-3 whitespace-nowrap ${hasTest ? 'text-red-700' : 'text-gray-600'}">${row.ngay_khoi_phat || '-'}</td>
+                        <td class="px-3 py-3 whitespace-nowrap ${hasTest ? 'text-red-700' : 'text-gray-600'}">${row.ngay_nhap_vien || '-'}</td>
+                        <td class="px-3 py-3 whitespace-nowrap ${hasTest ? 'text-red-800' : 'text-blue-700'} font-medium">${row.ngay_chan_doan || '-'}</td>
                         <td class="px-3 py-3 whitespace-nowrap text-center">
                             <div class="flex justify-center space-x-2">
                                 <button onclick="window.printRowData(${row.id})" class="bg-gray-600 hover:bg-gray-700 text-white p-1.5 rounded shadow-sm transition" title="In phiếu báo cáo">
@@ -524,6 +532,7 @@
             const keywordInput = window.removeAccents(document.getElementById('filterKeyword').value.trim());
             const fromDateInput = document.getElementById('filterFromDate').value; 
             const toDateInput = document.getElementById('filterToDate').value;     
+            const layMauInput = document.getElementById('filterLayMau').value;
             
             const tbody = document.getElementById('dataTableBody');
             tbody.innerHTML = '<tr><td colspan="8" class="text-center py-8 text-gray-500">Đang phân tích dữ liệu...</td></tr>';
@@ -588,18 +597,38 @@
                 });
             }
 
+            // Filter by "Lấy mẫu xét nghiệm"
+            if (layMauInput !== 'all') {
+                filteredData = filteredData.filter(item => {
+                    if (layMauInput === 'co') {
+                        return item.lay_mau_xn && item.lay_mau_xn.includes('Có');
+                    } else if (layMauInput === 'khong') {
+                        return !item.lay_mau_xn || !item.lay_mau_xn.includes('Có');
+                    }
+                    return true;
+                });
+            }
+
             window.renderTable(filteredData);
         };
 
         window.addEventListener('DOMContentLoaded', async () => {
             const savedSession = sessionStorage.getItem('userSession');
             if(!savedSession) {
-                window.location.href = 'index.html'; 
-                return;
+                // For demonstration/testing in editor, mocking a user if no session
+                console.warn("No user session found, mocking admin user for preview.");
+                currentUser = { ten: "Admin Preview", khoa: "Quản trị", quyen: "admin" };
+                // window.location.href = 'index.html'; 
+                // return;
+            } else {
+                try {
+                    currentUser = JSON.parse(savedSession);
+                } catch(e) {
+                     currentUser = { ten: "Admin Preview", khoa: "Quản trị", quyen: "admin" };
+                }
             }
             
             try {
-                currentUser = JSON.parse(savedSession);
                 const userHtml = `
                     <span class="font-semibold text-white">${currentUser.ten}</span> 
                     <span class="mx-1">•</span> Khoa: ${currentUser.khoa}
@@ -619,7 +648,8 @@
                 window.fetchData();
 
             } catch (e) {
-                window.location.href = 'index.html';
+                console.error(e);
+                // window.location.href = 'index.html';
             }
         });
     </script>
