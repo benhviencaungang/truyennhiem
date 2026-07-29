@@ -514,7 +514,10 @@
                         <td class="px-3 py-3 whitespace-nowrap ${hasTest ? 'text-red-700' : 'text-gray-500'}">${index + 1}</td>
                         <td class="px-3 py-3 whitespace-nowrap">
                             <div class="font-medium ${hasTest ? 'text-red-900' : 'text-gray-900'}">${row.ho_va_ten || ''}</div>
-                            ${currentUser.quyen === 'admin' ? `<div class="text-xs ${hasTest ? 'text-red-600' : 'text-blue-600'} mt-0.5">${row.khoa_phong || 'Chưa rõ khoa'}</div>` : ''}
+                            ${currentUser.quyen === 'admin' ? `
+                                <div class="text-xs ${hasTest ? 'text-red-600' : 'text-blue-600'} mt-0.5">${row.khoa_phong || 'Chưa rõ khoa'}</div>
+                                <div class="text-xs text-gray-500 mt-0.5">CCCD: <span class="font-medium">${row.cmnd || '-'}</span></div>
+                            ` : ''}
                         </td>
                         <td class="px-3 py-3 whitespace-nowrap ${hasTest ? 'text-red-700' : 'text-blue-600'} font-medium" title="Mã ICD: ${row.chan_doan_chinh}">
                             ${tenBenhHienThi}
