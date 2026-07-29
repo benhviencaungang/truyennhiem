@@ -128,7 +128,23 @@
         <span id="toastIcon" class="mr-2"></span>
         <span id="toastMsg"></span>
     </div>
-
+    <!-- Giao diện Modal Hiển Thị Lỗi Chi Tiết -->
+    <div id="errorModal" class="fixed inset-0 bg-black bg-opacity-50 hidden z-50 flex items-center justify-center">
+        <div class="bg-white rounded-lg shadow-xl w-11/12 max-w-3xl max-h-[80vh] flex flex-col">
+            <div class="px-6 py-4 border-b border-gray-200 flex justify-between items-center bg-red-50 rounded-t-lg">
+                <h3 class="text-lg font-bold text-red-700">Danh Sách Các Ca Lỗi Đẩy Lên Cổng</h3>
+                <button onclick="document.getElementById('errorModal').classList.add('hidden')" class="text-gray-400 hover:text-gray-700">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                </button>
+            </div>
+            <div class="p-6 overflow-auto flex-1 bg-gray-50">
+                <ul id="errorList" class="space-y-3 text-sm"></ul>
+            </div>
+            <div class="px-6 py-4 border-t border-gray-200 flex justify-end">
+                <button onclick="document.getElementById('errorModal').classList.add('hidden')" class="bg-gray-200 hover:bg-gray-300 text-gray-800 font-medium py-2 px-4 rounded transition">Đóng</button>
+            </div>
+        </div>
+    </div>
     <!-- Nhúng file cấu hình Supabase -->
     <script src="config.js"></script>
 
@@ -375,8 +391,8 @@
                 cb.disabled = false;
                 cb.classList.remove('text-gray-400', 'bg-gray-200', 'cursor-not-allowed', 'cb-push-locked');
                 cb.classList.add('text-purple-600', 'focus:ring-purple-500');
-                cb.checked = true; 
-                
+                cb.checked = false; // Đã sửa: Không tự động chọn
+             
                 const id = cb.value;
                 const row = document.getElementById(`row-${id}`);
                 if(row) {
@@ -390,7 +406,7 @@
                     }
                 }
             });
-
+            document.getElementById('checkAll').checked = false;
             document.getElementById('btnPush').disabled = false;
             window.showToast("Đã mở khóa các ca bệnh! Bạn có thể chọn và đẩy lại để cập nhật lên Cổng ECDS.", "success");
         };
@@ -474,13 +490,15 @@
                 tinhTrangCode = "0";
             }
 
-             // 6. Chuyển Loại Chẩn Đoán
+            // 6. Chuyển Loại Chẩn Đoán (BẮT BUỘC LÀ SỐ NGUYÊN ĐỂ MỞ KHÓA XÉT NGHIỆM)
             let phanLoai = ca.phan_loai_chan_doan || "";
-            let loaiCd = "03"; 
+            let loaiCd = 1; // Mặc định là số 1 (Xác định phòng xét nghiệm)
             if (phanLoai.includes("Nghi ngờ(Lâm sàng)") || phanLoai.includes("Nghi ngờ")) {
-                loaiCd = "0"; // Sửa "01" thành số 0 (hoặc chuỗi "0")
+                loaiCd = 0; // Số nguyên 0
             } else if (phanLoai.includes("Có thể")) {
-                loaiCd = "02";
+                loaiCd = 2; // Số nguyên 2
+            } else if (phanLoai.includes("Xác định") || phanLoai.includes("xét nghiệm")) {
+                loaiCd = 1; // Số nguyên 1
             }
 
             // 7. Hình thức điều trị
@@ -543,69 +561,29 @@
                 ngayRaVien: toDDMMYYYY(ca.ngay_ra_vien),
                 
                 thongTinTiemVacXin: tiemVacxinCode,
-                // 2. KHỐI XÉT NGHIỆM - CHUẨN KIỂU DỮ LIỆU SỐ & NGÀY (Backend đang chờ DD/MM/YYYY hoặc DD-MM-YYYY)
+                // 2. KHỐI XÉT NGHIỆM - CHỈ GỬI LOẠI XÉT NGHIỆM ĐỂ TEST
                 ...(() => {
-                    let hasLab = false;
-                    if (ca.lay_mau_xn && ca.lay_mau_xn.includes("Có")) {
-                        hasLab = true;
-                    }
+                    // Bước 1: Tính toán Loại xét nghiệm (0: Nhanh, 1: Elisa, 2: PCR)
+                    let loaiXN = 0; 
+                    let loaiStr = ca.loai_xn ? ca.loai_xn.trim().toLowerCase() : "";
+                    if (loaiStr.includes("mac") || loaiStr.includes("elisa") || loaiStr.includes("huyết thanh")) loaiXN = 1;
+                    else if (loaiStr.includes("pcr")) loaiXN = 2;
 
-                    // 1. CHUẨN HÓA NGÀY (Backend Java đang cấu hình @JsonFormat pattern dd/MM/yyyy hoặc dd-MM-yyyy)
-                    let ngayXN_Format = "";
-                    let rawDate = ca.ngay_chan_doan || ca.ngay_nhap_vien || "";
-                    
-                    // Kiểm tra nếu ngày đang bị ngược yyyy-mm-dd thì lật lại thành dd/mm/yyyy
-                    if (rawDate.includes("-")) {
-                        let p = rawDate.split("-");
-                        if (p[0].length === 4) {
-                            ngayXN_Format = `${p[2]}/${p[1]}/${p[0]}`; // Chuyển yyyy-mm-dd thành dd/mm/yyyy
-                        } else {
-                            ngayXN_Format = rawDate.replace(/-/g, "/"); // Chuyển dd-mm-yyyy thành dd/mm/yyyy
-                        }
-                    } else if (rawDate.includes("/")) {
-                        // Nếu đã là dấu / (ví dụ 25/07/2026), giữ nguyên
-                        ngayXN_Format = rawDate;
-                    } else {
-                        ngayXN_Format = rawDate;
-                    }
-
-                    let labData = {
-                        hasLabSample: hasLab,
-                        coLayMauXetNghiem: hasLab,
-                        layMauXetNghiem: hasLab ? 1 : 2
-                    };
-
-                    if (hasLab) {
-                        // 2. ÉP KIỂU SỐ NGUYÊN (Integer) TUYỆT ĐỐI KHÔNG DÙNG CHUỖI
-                        let valIntLoai = 0; // Test nhanh
-                        let loaiStr = ca.loai_xn ? ca.loai_xn.trim().toLowerCase() : "";
-                        if (loaiStr.includes("mac") || loaiStr.includes("elisa")) valIntLoai = 1;
-                        else if (loaiStr.includes("pcr")) valIntLoai = 2;
+                    // Bước 2: Trả về duy nhất Có lấy mẫu + Loại xét nghiệm
+                    return { 
+                        // --- Biến chuẩn ECDS ---
+                        hasLabSample: false,
+                        labTestType: loaiXN, // CHỈ GỬI LOẠI XÉT NGHIỆM
                         
-                        let valIntKQ = 0; // Dương tính
-                        let kqStr = ca.ket_qua_xn ? ca.ket_qua_xn.trim().toLowerCase() : "";
-                        if (kqStr.includes("âm")) valIntKQ = 1; 
-                        else if (kqStr.includes("nghi ngờ") || kqStr.includes("chưa")) valIntKQ = 2;
-
-                        Object.assign(labData, {
-                            // Truyền lên đúng bộ ba hoàn hảo đã từng thành công
-                            labTestType: valIntLoai,
-                            labResult: valIntKQ,
-                            labSampleDate: ngayXN_Format || null,
-                            
-                            // Bọc lót tên biến tiếng Việt cho Proxy (Cũng bằng SỐ NGUYÊN và NGÀY)
-                            loaiXetNghiem: valIntLoai,
-                            ketQuaXetNghiem: valIntKQ,
-                            ngayLayMau: ngayXN_Format || null,
-                            ngayCoKetQuaXetNghiem: ngayXN_Format || null,
-                            
-                            labTestName: ca.ten_xn_cu_the || ""
-                        });
-                    }
-
-                    return labData;
+                        // --- Biến bọc lót Proxy ---
+                        layMauXetNghiem: 1, 
+                        loaiXetNghiem: loaiXN,
+                        coLayMauXetNghiem: false
+                        
+                        // Đã cắt bỏ toàn bộ ngày tháng, kết quả và các trường khác theo ý bạn!
+                    };
                 })(),
-
+                
                 // 3. THÔNG TIN NGƯỜI BÁO CÁO
                 hoTenNguoiBaoCao: "Trần Lê Thuý Huỳnh",
                 soDienThoaiNguoiBaoCao: "0349545123",
@@ -767,6 +745,8 @@
                 if(pushData && pushData.thanhCong) {
                     window.showToast(`Đã đẩy xong. Thành công: ${pushData.duLieu.soThanhCong}, Lỗi: ${pushData.duLieu.soLoi}`);
                     
+                    let dsLoi = []; // Khởi tạo mảng gom lỗi
+                    
                     if(pushData.duLieu.chiTiet) {
                         for (const kq of pushData.duLieu.chiTiet) {
                             const domId = rowMapping[kq.chiSo];
@@ -803,19 +783,42 @@
                             } else {
                                 badge.className = "status-badge status-error";
                                 badge.innerText = "Lỗi";
-                                log.innerText = kq.cacLoi ? JSON.stringify(kq.cacLoi) : "Lỗi dữ liệu";
+                                const noiDungLoi = kq.cacLoi ? JSON.stringify(kq.cacLoi) : "Lỗi dữ liệu";
+                                log.innerText = noiDungLoi;
                                 log.className = "px-3 py-2 text-xs text-red-600 truncate max-w-xs";
+                                
+                                // Tìm tên bệnh nhân để ghép vào danh sách hiển thị
+                                const bn = dataToPush.find(x => x.id.toString() === domId);
+                                const tenBn = bn ? bn.ho_va_ten : "Không rõ tên";
+                                dsLoi.push(`<li class="bg-white p-3 rounded shadow-sm border border-red-100"><span class="font-bold text-red-600">${tenBn}:</span> <span class="text-gray-700">${noiDungLoi}</span></li>`);
                             }
                         }
                     }
-                } else {
-                    window.showToast("Lỗi đẩy dữ liệu: " + (pushData?.thongDiep || "Unknown Error"), "error");
                     
+                    // Nếu có lỗi, bật Modal hiển thị lên
+                    if(dsLoi.length > 0) {
+                        document.getElementById('errorList').innerHTML = dsLoi.join('');
+                        document.getElementById('errorModal').classList.remove('hidden');
+                    }
+                    
+                } else {
+                    const thongDiepLoi = pushData?.thongDiep || "Unknown Error";
+                    window.showToast("Lỗi đẩy dữ liệu: " + thongDiepLoi, "error");
+                    
+                    let dsLoi = [];
                     checkedBoxes.forEach(cb => {
                         const id = cb.value;
                         document.getElementById(`badge-${id}`).className = "status-badge status-error";
                         document.getElementById(`badge-${id}`).innerText = "Thất bại";
+                        
+                        const bn = dataToPush.find(x => x.id.toString() === id);
+                        const tenBn = bn ? bn.ho_va_ten : "Không rõ tên";
+                        dsLoi.push(`<li class="bg-white p-3 rounded shadow-sm border border-red-100"><span class="font-bold text-red-600">${tenBn}:</span> <span class="text-gray-700">${thongDiepLoi}</span></li>`);
                     });
+                    
+                    // Bật Modal báo lỗi chung
+                    document.getElementById('errorList').innerHTML = dsLoi.join('');
+                    document.getElementById('errorModal').classList.remove('hidden');
                 }
             } catch(err) {
                 console.error(err);
