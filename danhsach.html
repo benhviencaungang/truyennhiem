@@ -430,7 +430,7 @@
             }
         };
 
-        // ĐÃ SỬA: Hàm renderTable được cập nhật
+        // ĐÃ SỬA: Hàm renderTable gộp toàn bộ các tính năng mới
         window.renderTable = function (data) {
             const tbody = document.getElementById('dataTableBody');
             const thead = document.getElementById('tableHeader');
@@ -449,13 +449,14 @@
                     <th class="px-3 py-3 text-left font-medium text-gray-500 uppercase tracking-wider">Thông tin xét nghiệm</th>
             `;
             if (currentUser && currentUser.quyen === 'admin') {
+                headerHtml += `<th class="px-3 py-3 text-left font-medium text-gray-500 uppercase tracking-wider min-w-[130px]">Người báo cáo</th>`;
                 headerHtml += `<th class="px-3 py-3 text-center font-medium text-gray-500 uppercase tracking-wider">Đồng bộ</th>`;
             }
             headerHtml += `<th class="px-3 py-3 text-center font-medium text-gray-500 uppercase tracking-wider w-24">Thao tác</th></tr>`;
             thead.innerHTML = headerHtml;
 
             if (data.length === 0) {
-                const colSpan = (currentUser && currentUser.quyen === 'admin') ? 10 : 9;
+                const colSpan = (currentUser && currentUser.quyen === 'admin') ? 11 : 9;
                 tbody.innerHTML = `<tr><td colspan="${colSpan}" class="text-center py-8 text-gray-500 font-medium">Không tìm thấy ca bệnh nào phù hợp.</td></tr>`;
                 return;
             }
@@ -481,6 +482,16 @@
                     }
                 }
 
+                // --- BẮT ĐẦU THÊM MỚI: TẠO MÀU NỀN TỰ ĐỘNG THEO TÊN BỆNH ---
+                let hashColor = 0;
+                let diseaseKey = tenBenhHienThi.trim().toUpperCase();
+                for (let i = 0; i < diseaseKey.length; i++) {
+                    hashColor = diseaseKey.charCodeAt(i) + ((hashColor << 5) - hashColor);
+                }
+                const hue = Math.abs(hashColor) % 360; 
+                const bgStyle = `background-color: hsl(${hue}, 65%, 96%);`;
+                // --- KẾT THÚC THÊM MỚI ---
+
                 // Check if testing was done
                 const hasTest = row.lay_mau_xn && row.lay_mau_xn.includes('Có');
                 const rowClass = hasTest ? "table-row-hover transition row-has-test" : "table-row-hover transition";
@@ -500,15 +511,21 @@
                     testInfo = `<div class="text-xs text-gray-700 leading-tight mt-1">${testDetails}</div>`;
                 }
 
-                // Chuẩn bị cột đồng bộ (chỉ hiện cho admin)
-                let syncCol = '';
+                // Chuẩn bị cột đồng bộ & Người lập (chỉ hiện cho admin)
+                let adminCols = '';
                 if (currentUser && currentUser.quyen === 'admin') {
                     const isSynced = row.dong_bo_ecds === 1;
-                    syncCol = `<td class="px-3 py-3 whitespace-nowrap text-center">
-                                ${isSynced ? '<span class="px-2 py-1 bg-green-100 text-green-700 text-xs rounded-full font-medium border border-green-200 shadow-sm">Đã ĐB</span>' : '<span class="text-gray-400 text-xs">-</span>'}
-                               </td>`;
+                    const nguoiLap = row.nguoi_bao_cao_ten || 'Không rõ';
+                    adminCols = `
+                        <td class="px-3 py-3 whitespace-normal break-words text-sm font-medium text-blue-700 min-w-[130px]">
+                            ${nguoiLap}
+                        </td>
+                        <td class="px-3 py-3 whitespace-nowrap text-center">
+                            ${isSynced ? '<span class="px-2 py-1 bg-green-100 text-green-700 text-xs rounded-full font-medium border border-green-200 shadow-sm">Đã ĐB</span>' : '<span class="text-gray-400 text-xs">-</span>'}
+                        </td>
+                    `;
                 }
-                // --- BẮT ĐẦU THÊM MỚI: TÍNH TOÁN 24H ---
+                
                 let isWithin24h = false;
                 if (row.created_at) {
                     const createdTime = new Date(row.created_at).getTime();
@@ -516,11 +533,10 @@
                     const hoursDiff = (currentTime - createdTime) / (1000 * 60 * 60);
                     isWithin24h = hoursDiff <= 24;
                 }
-                // Quyền thao tác: Admin thì luôn được sửa, nhân viên thì chỉ được trong vòng 24h
                 const canEditOrDelete = (currentUser && currentUser.quyen === 'admin') || isWithin24h;
-                // --- KẾT THÚC THÊM MỚI ---
+
                 tbody.innerHTML += `
-                    <tr class="${rowClass}">
+                    <tr class="${rowClass}" style="${bgStyle}">
                         <td class="px-3 py-3 whitespace-nowrap ${hasTest ? 'text-red-700' : 'text-gray-500'}">${index + 1}</td>
                         <td class="px-3 py-3 whitespace-nowrap">
                             <div class="font-medium ${hasTest ? 'text-red-900' : 'text-gray-900'}">${row.ho_va_ten || ''}</div>
@@ -544,7 +560,7 @@
                         <td class="px-3 py-3 whitespace-nowrap">
                             ${hasTest ? `<span class="px-2 py-0.5 bg-red-100 text-red-700 text-xs rounded border border-red-200 inline-block font-medium">Có lấy mẫu</span>${testInfo}` : '<span class="text-gray-400 text-xs">-</span>'}
                         </td>
-                        ${syncCol}
+                        ${adminCols}
                         <td class="px-3 py-3 whitespace-nowrap text-center">
                             <div class="flex justify-center space-x-2">
                                 <button onclick="window.printRowData(${row.id})" class="bg-gray-600 hover:bg-gray-700 text-white p-1.5 rounded shadow-sm transition" title="In phiếu báo cáo">
@@ -564,7 +580,6 @@
                 `;
             });
         };
-
         window.editReport = function (id) {
             sessionStorage.setItem('editReportId', id);
             window.location.href = 'index.html';
