@@ -1556,7 +1556,11 @@
             document.getElementById('ngay_ra_vien').value = window.formatYYYYMMDD(data.ngay_ra_vien);
             
             document.getElementById('hinh_thuc_dieu_tri').value = data.hinh_thuc_dieu_tri || '';
-
+            // --- CHÈN THÊM 3 DÒNG NÀY ĐỂ GIỮ NGUYÊN NGƯỜI TẠO BAN ĐẦU ---
+            document.getElementById('nguoi_bao_cao_ten').value = data.nguoi_bao_cao_ten || '';
+            document.getElementById('nguoi_bao_cao_sdt').value = data.nguoi_bao_cao_sdt || '';
+            document.getElementById('nguoi_bao_cao_email').value = data.nguoi_bao_cao_email || '';
+            // --- KẾT THÚC CHÈN ---
             // Update các hiệu ứng form (ẩn/hiện các trường phụ thuộc)
             document.getElementById('ngay_sinh').dispatchEvent(new Event('change'));
             document.getElementById('dieu_tri_vaccine').dispatchEvent(new Event('change'));
