@@ -508,7 +508,17 @@
                                 ${isSynced ? '<span class="px-2 py-1 bg-green-100 text-green-700 text-xs rounded-full font-medium border border-green-200 shadow-sm">Đã ĐB</span>' : '<span class="text-gray-400 text-xs">-</span>'}
                                </td>`;
                 }
-
+                // --- BẮT ĐẦU THÊM MỚI: TÍNH TOÁN 24H ---
+                let isWithin24h = false;
+                if (row.created_at) {
+                    const createdTime = new Date(row.created_at).getTime();
+                    const currentTime = new Date().getTime();
+                    const hoursDiff = (currentTime - createdTime) / (1000 * 60 * 60);
+                    isWithin24h = hoursDiff <= 24;
+                }
+                // Quyền thao tác: Admin thì luôn được sửa, nhân viên thì chỉ được trong vòng 24h
+                const canEditOrDelete = (currentUser && currentUser.quyen === 'admin') || isWithin24h;
+                // --- KẾT THÚC THÊM MỚI ---
                 tbody.innerHTML += `
                     <tr class="${rowClass}">
                         <td class="px-3 py-3 whitespace-nowrap ${hasTest ? 'text-red-700' : 'text-gray-500'}">${index + 1}</td>
@@ -540,7 +550,7 @@
                                 <button onclick="window.printRowData(${row.id})" class="bg-gray-600 hover:bg-gray-700 text-white p-1.5 rounded shadow-sm transition" title="In phiếu báo cáo">
                                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"></path></svg>
                                 </button>
-                                ${currentUser.quyen === 'admin' ? `
+                                ${canEditOrDelete ? `
                                 <button onclick="window.editReport(${row.id})" class="bg-blue-600 hover:bg-blue-700 text-white p-1.5 rounded shadow-sm transition" title="Sửa ca bệnh">
                                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path></svg>
                                 </button>
