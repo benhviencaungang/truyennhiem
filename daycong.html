@@ -85,6 +85,9 @@
                 <div class="space-y-2">
                     <input type="text" id="ecdsUser" placeholder="Tài khoản ECDS (VD: muong_cha_11)" class="border border-gray-300 rounded p-1.5 focus:ring-2 focus:ring-purple-500 outline-none w-full text-sm">
                     <input type="password" id="ecdsPass" placeholder="Mật khẩu ECDS" class="border border-gray-300 rounded p-1.5 focus:ring-2 focus:ring-purple-500 outline-none w-full text-sm">
+                    <button onclick="window.saveEcdsConfig()" class="w-full bg-purple-100 hover:bg-purple-200 text-purple-700 font-medium py-1.5 px-4 rounded border border-purple-300 transition shadow-sm text-sm mt-2">
+                        Lưu mật khẩu mới
+                    </button>
                 </div>
             </div>
         </div>
@@ -656,7 +659,10 @@
                 window.showToast("Vui lòng điền tài khoản và mật khẩu Cổng ECDS", "error");
                 return;
             }
-
+            // Lưu thông tin vào bộ nhớ trình duyệt
+            localStorage.setItem('savedEcdsUser', user);
+            localStorage.setItem('savedEcdsPass', pass);
+            window.showToast("Đã lưu thông tin tài khoản ECDS sử dụng cho các lần sau!", "success");
             const checkedBoxes = Array.from(document.querySelectorAll('.cb-push:checked'));
             if(checkedBoxes.length === 0) {
                 window.showToast("Bạn chưa chọn ca bệnh nào để đẩy", "error");
@@ -834,7 +840,15 @@
             if(!savedSession) { window.location.href = 'index.html'; return; }
             currentUser = JSON.parse(savedSession);
             
-            if (typeof CONFIG !== 'undefined') {
+            // Ưu tiên đọc từ LocalStorage trước
+            const savedUser = localStorage.getItem('savedEcdsUser');
+            const savedPass = localStorage.getItem('savedEcdsPass');
+
+            if (savedUser && savedPass) {
+                document.getElementById('ecdsUser').value = savedUser;
+                document.getElementById('ecdsPass').value = savedPass;
+            } else if (typeof CONFIG !== 'undefined') {
+                // Nếu chưa từng lưu, mới lấy mặc định từ config.js
                 if (CONFIG.ECDS_USER) document.getElementById('ecdsUser').value = CONFIG.ECDS_USER;
                 if (CONFIG.ECDS_PASS) document.getElementById('ecdsPass').value = CONFIG.ECDS_PASS;
             }
