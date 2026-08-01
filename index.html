@@ -421,7 +421,7 @@
                                 </select>
                             </div>
                             <div id="container_ten_xn">
-                                <label class="block text-sm font-medium text-gray-700 mb-1">Tên xét nghiệm cụ thể <span class="text-red-500">*</span></label>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Tên xét nghiệm cụ thể</label>
                                 <input type="text" id="ten_xn_cu_the" class="w-full border border-gray-300 rounded p-2 focus:ring-2 focus:ring-blue-500 outline-none">
                             </div>
                             <div id="container_ngay_lay_mau">
@@ -1374,7 +1374,58 @@
 
             const editId = sessionStorage.getItem('editReportId');
             let result;
+            // --- BẮT ĐẦU ĐOẠN CODE KIỂM TRA TRÙNG LẶP ---
+            try {
+                // Truy vấn tìm các ca bệnh có cùng Tên hoặc cùng CCCD để tối ưu hiệu suất truy vấn
+                let checkQuery = supabaseClient.from('form_benh_truyen_nhiem')
+                    .select('id, ho_va_ten, cmnd, ngay_sinh, ngay_nhap_vien');
+                    
+                if (editId) {
+                    checkQuery = checkQuery.neq('id', editId); // Bỏ qua bản ghi đang sửa
+                }
+                
+                let orQuery = `ho_va_ten.ilike.${payload.ho_va_ten}`;
+                if (payload.cmnd) orQuery += `,cmnd.eq.${payload.cmnd}`;
+                checkQuery = checkQuery.or(orQuery);
 
+                const { data: existingRecords, error: checkErr } = await checkQuery;
+
+                if (!checkErr && existingRecords && existingRecords.length > 0) {
+                    let isDuplicate = false;
+                    
+                    for (let record of existingRecords) {
+                        let matchCount = 0;
+                        
+                        // 1. So sánh Tên (không phân biệt hoa thường)
+                        if (record.ho_va_ten && payload.ho_va_ten && record.ho_va_ten.trim().toLowerCase() === payload.ho_va_ten.trim().toLowerCase()) matchCount++;
+                        
+                        // 2. So sánh CCCD
+                        if (record.cmnd && payload.cmnd && record.cmnd.trim() === payload.cmnd.trim()) matchCount++;
+                        
+                        // 3. So sánh Ngày sinh (đã format DD/MM/YYYY)
+                        if (record.ngay_sinh && payload.ngay_sinh && record.ngay_sinh === payload.ngay_sinh) matchCount++;
+                        
+                        // 4. So sánh Ngày nhập viện/Ngày khám (đã format DD/MM/YYYY)
+                        if (record.ngay_nhap_vien && payload.ngay_nhap_vien && record.ngay_nhap_vien === payload.ngay_nhap_vien) matchCount++;
+                        
+                        // Nếu trùng từ 3 điều kiện trở lên
+                        if (matchCount >= 3) {
+                            isDuplicate = true;
+                            break; // Dừng vòng lặp ngay khi phát hiện trùng
+                        }
+                    }
+                    
+                    if (isDuplicate) {
+                        window.showToast("Cảnh báo: Dữ liệu bị trùng! Bệnh nhân này đã tồn tại trong hệ thống (Trùng từ 3/4 thông tin cơ bản).", "error");
+                        btn.innerHTML = originalText; 
+                        btn.disabled = false;
+                        return; // Dừng việc lưu vào Database, form vẫn giữ nguyên để sửa
+                    }
+                }
+            } catch (error) {
+                console.error("Lỗi khi kiểm tra trùng lặp:", error);
+            }
+            // --- KẾT THÚC ĐOẠN CODE KIỂM TRA TRÙNG LẶP ---
             if (editId) {
                 result = await supabaseClient.from('form_benh_truyen_nhiem').update(payload).eq('id', editId);
             } else {
@@ -1652,7 +1703,7 @@
             const xnFields = [
                 { input: document.getElementById('loai_xn'), container: document.getElementById('container_loai_xn'), isRequired: true },
                 { input: document.getElementById('ket_qua_xn'), container: document.getElementById('container_ket_qua_xn'), isRequired: true },
-                { input: document.getElementById('ten_xn_cu_the'), container: document.getElementById('container_ten_xn'), isRequired: true },
+                { input: document.getElementById('ten_xn_cu_the'), container: document.getElementById('container_ten_xn'), isRequired: false },
                 { input: document.getElementById('ngay_lay_mau'), container: document.getElementById('container_ngay_lay_mau'), isRequired: true },
                 { input: document.getElementById('ngay_ket_qua_xn'), container: document.getElementById('container_ngay_ket_qua_xn'), isRequired: false } // Ngày có KQ vẫn không bắt buộc
             ];
