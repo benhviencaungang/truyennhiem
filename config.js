@@ -4,5 +4,5 @@ const CONFIG = {
     
     // Tài khoản API Cổng ECDS Bộ Y Tế
     ECDS_USER: 'bvdkkvcaungangtv', // Sửa lại thành tài khoản của bạn
-    ECDS_PASS: '123456aA#'     // Sửa lại thành mật khẩu của bạn
+    ECDS_PASS: 'Bvcn2025@'     // Sửa lại thành mật khẩu của bạn
 };
