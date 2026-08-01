@@ -1251,6 +1251,35 @@
                     return false; 
                 } 
             }
+            
+            // --- BẮT ĐẦU PHẦN CODE CẦN THÊM VÀO ---
+            // Ràng buộc ngày nhập viện >= ngày khởi phát (Kiểm tra ở Bước 4 hoặc khi bấm Submit ở Bước 5)
+            if (step === 4 || step === 5) {
+                const ngayKhoiPhat = document.getElementById('ngay_khoi_phat').value;
+                const ngayNhapVien = document.getElementById('ngay_nhap_vien').value;
+
+                if (ngayKhoiPhat && ngayNhapVien) {
+                    // Chuyển string YYYY-MM-DD sang Date object để so sánh
+                    if (new Date(ngayNhapVien) < new Date(ngayKhoiPhat)) {
+                        window.showToast("Lỗi: Ngày nhập viện/khám phải bằng hoặc sau Ngày khởi phát!", "error");
+                        
+                        // Nếu đang ở bước submit (5) mà phát hiện lỗi, tự động quay lại tab 4
+                        if (step === 5 && currentStep !== 4) {
+                            window.goToStep(4);
+                        }
+                        
+                        // Bôi đỏ ô ngày nhập viện để cảnh báo
+                        const inputNhapVien = document.getElementById('ngay_nhap_vien');
+                        inputNhapVien.focus();
+                        inputNhapVien.classList.add('border-red-500', 'ring-red-200');
+                        setTimeout(() => inputNhapVien.classList.remove('border-red-500', 'ring-red-200'), 2000);
+                        
+                        return false; // Chặn không cho đi tiếp hoặc lưu form
+                    }
+                }
+            }
+            // --- KẾT THÚC PHẦN CODE CẦN THÊM VÀO ---
+
             return true;
         };
 
