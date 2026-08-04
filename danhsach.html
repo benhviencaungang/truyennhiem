@@ -539,14 +539,11 @@
                     `;
                 }
                 
-                let isWithin24h = false;
-                if (row.created_at) {
-                    const createdTime = new Date(row.created_at).getTime();
-                    const currentTime = new Date().getTime();
-                    const hoursDiff = (currentTime - createdTime) / (1000 * 60 * 60);
-                    isWithin24h = hoursDiff <= 24;
-                }
-                const canEditOrDelete = (currentUser && currentUser.quyen === 'admin') || isWithin24h;
+                // Kiểm tra trạng thái đã đồng bộ hay chưa (1 là đã đồng bộ)
+                const isSyncedStatus = row.dong_bo_ecds === 1;
+                
+                // Quyền Sửa/Xóa: Admin luôn được phép, User thường chỉ được phép khi CHƯA đồng bộ
+                const canEditOrDelete = (currentUser && currentUser.quyen === 'admin') || !isSyncedStatus;
 
                 tbody.innerHTML += `
                     <tr class="${rowClass}" style="${bgStyle}">
