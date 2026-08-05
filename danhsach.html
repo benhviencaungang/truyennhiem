@@ -13,13 +13,22 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
     <style>
-        .hide-scrollbar::-webkit-scrollbar {
-            display: none;
+        /* Tùy chỉnh thanh cuộn ngang chuyên nghiệp */
+        .custom-scrollbar::-webkit-scrollbar {
+            height: 10px; /* Độ dày thanh cuộn ngang */
+            width: 10px;
         }
-
-        .hide-scrollbar {
-            -ms-overflow-style: none;
-            scrollbar-width: none;
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: #f1f5f9; 
+            border-radius: 8px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: #cbd5e1; 
+            border-radius: 8px;
+            border: 2px solid #f1f5f9;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8; 
         }
 
         .table-row-hover:hover {
@@ -448,7 +457,22 @@
                     <th class="px-3 py-3 text-left font-medium text-gray-500 uppercase tracking-wider text-blue-600">Chẩn đoán</th>
                     <th class="px-3 py-3 text-left font-medium text-gray-500 uppercase tracking-wider">Thông tin xét nghiệm</th>
             `;
-            if (currentUser && currentUser.quyen === 'admin') {
+           if (currentUser && currentUser.quyen === 'admin') {
+                // Thêm các cột hiển thị riêng cho Admin
+                headerHtml += `
+                    <th class="px-3 py-3 text-left font-medium text-gray-500 uppercase tracking-wider min-w-[100px]">Ngày sinh</th>
+                    <th class="px-3 py-3 text-left font-medium text-gray-500 uppercase tracking-wider min-w-[80px]">Giới tính</th>
+                    <th class="px-3 py-3 text-left font-medium text-gray-500 uppercase tracking-wider min-w-[90px]">Dân tộc</th>
+                    <th class="px-3 py-3 text-left font-medium text-gray-500 uppercase tracking-wider min-w-[120px]">Nghề nghiệp</th>
+                    <th class="px-3 py-3 text-left font-medium text-gray-500 uppercase tracking-wider min-w-[180px]">Địa chỉ (Nơi ở)</th>
+                    <th class="px-3 py-3 text-left font-medium text-gray-500 uppercase tracking-wider min-w-[120px]">Xã/Phường</th>
+                    <th class="px-3 py-3 text-left font-medium text-gray-500 uppercase tracking-wider min-w-[120px]">Tỉnh/TP</th>
+                    <th class="px-3 py-3 text-left font-medium text-gray-500 uppercase tracking-wider min-w-[150px]">Nơi làm việc</th>
+                    <th class="px-3 py-3 text-left font-medium text-gray-500 uppercase tracking-wider min-w-[160px]">Phân loại chẩn đoán</th>
+                    <th class="px-3 py-3 text-left font-medium text-gray-500 uppercase tracking-wider min-w-[120px]">Điều trị (Vaccine)</th>
+                    <th class="px-3 py-3 text-center font-medium text-gray-500 uppercase tracking-wider min-w-[100px]">Số lần tiêm</th>
+                    <th class="px-3 py-3 text-left font-medium text-gray-500 uppercase tracking-wider min-w-[150px]">Ghi chú</th>
+                `;
                 headerHtml += `<th class="px-3 py-3 text-left font-medium text-gray-500 uppercase tracking-wider min-w-[130px]">Người báo cáo</th>`;
                 headerHtml += `<th class="px-3 py-3 text-center font-medium text-gray-500 uppercase tracking-wider">Đồng bộ</th>`;
             }
@@ -530,6 +554,21 @@
                     }
 
                     adminCols = `
+                        <!-- Dữ liệu các cột mới thêm cho Admin -->
+                        <td class="px-3 py-3 whitespace-nowrap text-sm text-gray-700">${row.ngay_sinh || '-'}</td>
+                        <td class="px-3 py-3 whitespace-nowrap text-sm text-gray-700">${row.gioi_tinh || '-'}</td>
+                        <td class="px-3 py-3 whitespace-nowrap text-sm text-gray-700">${row.dan_toc || '-'}</td>
+                        <td class="px-3 py-3 whitespace-nowrap text-sm text-gray-700">${row.nghe_nghiep || '-'}</td>
+                        <td class="px-3 py-3 whitespace-normal break-words text-sm text-gray-700 min-w-[180px]">${row.dia_chi_chi_tiet || '-'}</td>
+                        <td class="px-3 py-3 whitespace-nowrap text-sm text-gray-700">${row.xa_phuong || '-'}</td>
+                        <td class="px-3 py-3 whitespace-nowrap text-sm text-gray-700">${row.tinh_tp || '-'}</td>
+                        <td class="px-3 py-3 whitespace-normal break-words text-sm text-gray-700 min-w-[150px]">${row.noi_lam_viec || '-'}</td>
+                        <td class="px-3 py-3 whitespace-nowrap text-sm text-blue-700 font-medium">${row.phan_loai_chan_doan || '-'}</td>
+                        <td class="px-3 py-3 whitespace-nowrap text-sm text-gray-700">${row.dieu_tri_vaccine || '-'}</td>
+                        <td class="px-3 py-3 whitespace-nowrap text-sm text-gray-700 text-center font-bold">${row.so_lan_tiem || '-'}</td>
+                        <td class="px-3 py-3 whitespace-normal break-words text-sm text-gray-500 min-w-[150px] italic">${row.ghi_chu || '-'}</td>
+                        
+                        <!-- Cột cũ -->
                         <td class="px-3 py-3 whitespace-normal break-words text-sm font-medium text-blue-700 min-w-[130px]">
                             <div>${nguoiLap}</div>${sdtHtml}
                         </td>
