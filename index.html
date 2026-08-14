@@ -1794,10 +1794,12 @@
                     capDoInput.parentElement.style.display = 'block'; 
                     capDoInput.placeholder = "Click mũi tên góc phải hoặc gõ để chọn...";
                     capDoInput.classList.add('bg-blue-50', 'border-blue-400');
+                    capDoInput.required = true; // Bật thuộc tính bắt buộc nhập
                 } else {
                     // Ẩn hoàn toàn khung nhập liệu và làm sạch dữ liệu nếu không có phân độ
                     capDoInput.parentElement.style.display = 'none'; 
                     capDoInput.value = ''; 
+                    capDoInput.required = false; // Bỏ thuộc tính bắt buộc để hệ thống cho phép qua bước
                 }
                 },
                 item => {
