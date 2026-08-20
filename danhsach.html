@@ -9,26 +9,29 @@
         href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🏥</text></svg>">
 
     <script src="https://cdn.tailwindcss.com"></script>
-
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
     <style>
         /* Tùy chỉnh thanh cuộn ngang chuyên nghiệp */
         .custom-scrollbar::-webkit-scrollbar {
-            height: 10px; /* Độ dày thanh cuộn ngang */
+            height: 10px;
+            /* Độ dày thanh cuộn ngang */
             width: 10px;
         }
+
         .custom-scrollbar::-webkit-scrollbar-track {
-            background: #f1f5f9; 
+            background: #f1f5f9;
             border-radius: 8px;
         }
+
         .custom-scrollbar::-webkit-scrollbar-thumb {
-            background: #cbd5e1; 
+            background: #cbd5e1;
             border-radius: 8px;
             border: 2px solid #f1f5f9;
         }
+
         .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-            background: #94a3b8; 
+            background: #94a3b8;
         }
 
         .table-row-hover:hover {
@@ -160,6 +163,15 @@
                     <option value="khong">Không lấy mẫu</option>
                 </select>
             </div>
+            <div id="filterRaVienContainer" class="hidden">
+                <label class="block text-sm font-medium text-gray-700 mb-1">Trạng thái (Admin)</label>
+                <select id="filterRaVien"
+                    class="border border-gray-300 rounded p-2 focus:ring-2 focus:ring-blue-500 outline-none w-full sm:w-auto">
+                    <option value="all">Tất cả trạng thái</option>
+                    <option value="true">Đã ra viện (Có tick)</option>
+                    <option value="false">Chưa ra viện</option>
+                </select>
+            </div>
             <button onclick="window.fetchData()"
                 class="bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-6 rounded transition shadow-sm flex items-center w-full sm:w-auto justify-center">
                 Tìm kiếm
@@ -169,7 +181,6 @@
         <div class="bg-white rounded-lg shadow-sm border border-gray-200 flex-1 overflow-hidden flex flex-col">
             <div class="overflow-x-auto overflow-y-auto flex-1 hide-scrollbar relative">
                 <table class="min-w-full divide-y divide-gray-200 text-sm">
-                    <!-- ĐÃ SỬA: Thêm ID để render Header động bằng Javascript -->
                     <thead class="bg-gray-50 sticky top-0 z-10 shadow-sm" id="tableHeader">
                         <!-- Header sẽ được render bằng JS dựa vào quyền user -->
                     </thead>
@@ -190,7 +201,6 @@
 
     <!-- KHU VỰC ẨN: DÀNH RIÊNG CHO IN ẤN -->
     <div id="printArea" class="hidden">
-        <!-- Header cho bản in theo yêu cầu -->
         <div
             style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 20px; font-size: 15px; font-family: 'Times New Roman', Times, serif;">
             <div style="text-align: center;">
@@ -457,7 +467,7 @@
                     <th class="px-3 py-3 text-left font-medium text-gray-500 uppercase tracking-wider text-blue-600">Chẩn đoán</th>
                     <th class="px-3 py-3 text-left font-medium text-gray-500 uppercase tracking-wider">Thông tin xét nghiệm</th>
             `;
-           if (currentUser && currentUser.quyen === 'admin') {
+            if (currentUser && currentUser.quyen === 'admin') {
                 // Thêm các cột hiển thị riêng cho Admin
                 headerHtml += `
                     <th class="px-3 py-3 text-left font-medium text-gray-500 uppercase tracking-wider min-w-[100px]">Ngày sinh</th>
@@ -475,12 +485,13 @@
                 `;
                 headerHtml += `<th class="px-3 py-3 text-left font-medium text-gray-500 uppercase tracking-wider min-w-[130px]">Người báo cáo</th>`;
                 headerHtml += `<th class="px-3 py-3 text-center font-medium text-gray-500 uppercase tracking-wider">Đồng bộ</th>`;
+                headerHtml += `<th class="px-3 py-3 text-center font-medium text-gray-500 uppercase tracking-wider">Ra viện</th>`;
             }
             headerHtml += `<th class="px-3 py-3 text-center font-medium text-gray-500 uppercase tracking-wider w-24">Thao tác</th></tr>`;
             thead.innerHTML = headerHtml;
 
             if (data.length === 0) {
-                const colSpan = (currentUser && currentUser.quyen === 'admin') ? 11 : 9;
+                const colSpan = (currentUser && currentUser.quyen === 'admin') ? 12 : 9;
                 tbody.innerHTML = `<tr><td colspan="${colSpan}" class="text-center py-8 text-gray-500 font-medium">Không tìm thấy ca bệnh nào phù hợp.</td></tr>`;
                 return;
             }
@@ -512,7 +523,7 @@
                 for (let i = 0; i < diseaseKey.length; i++) {
                     hashColor = diseaseKey.charCodeAt(i) + ((hashColor << 5) - hashColor);
                 }
-                const hue = Math.abs(hashColor) % 360; 
+                const hue = Math.abs(hashColor) % 360;
                 const bgStyle = `background-color: hsl(${hue}, 65%, 96%);`;
                 // --- KẾT THÚC THÊM MỚI ---
 
@@ -541,7 +552,7 @@
                     const isSynced = row.dong_bo_ecds === 1;
                     const nguoiLap = row.nguoi_bao_cao_ten || 'Không rõ';
                     const sdtNguoiLap = row.nguoi_bao_cao_sdt || ''; // Lấy SĐT người báo cáo
-                    
+
                     let sdtHtml = '';
                     if (sdtNguoiLap) {
                         sdtHtml = `
@@ -570,17 +581,23 @@
                         
                         <!-- Cột cũ -->
                         <td class="px-3 py-3 whitespace-normal break-words text-sm font-medium text-blue-700 min-w-[130px]">
-                            <div>${nguoiLap}</div>${sdtHtml}
-                        </td>
+                            <div>${nguoiLap}</div>${sdtHtml}</td>
                         <td class="px-3 py-3 whitespace-nowrap text-center">
                             ${isSynced ? '<span class="px-2 py-1 bg-green-100 text-green-700 text-xs rounded-full font-medium border border-green-200 shadow-sm">Đã ĐB</span>' : '<span class="text-gray-400 text-xs">-</span>'}
                         </td>
+                        <td class="px-3 py-3 whitespace-nowrap text-center">
+                            <button onclick="window.toggleRaVien(${row.id}, ${row.ravien === true})" class="focus:outline-none inline-flex items-center justify-center w-8 h-8 rounded hover:bg-gray-200 transition" title="Nhấn để đổi trạng thái">
+                                ${row.ravien === true ?
+                            '<svg class="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"></path></svg>'
+                            : '<div class="w-5 h-5 border-2 border-gray-400 rounded hover:border-blue-500 transition-colors"></div>'}
+                            </button>
+                        </td>
                     `;
                 }
-                
+
                 // Kiểm tra trạng thái đã đồng bộ hay chưa (1 là đã đồng bộ)
                 const isSyncedStatus = row.dong_bo_ecds === 1;
-                
+
                 // Quyền Sửa/Xóa: Admin luôn được phép, User thường chỉ được phép khi CHƯA đồng bộ
                 const canEditOrDelete = (currentUser && currentUser.quyen === 'admin') || !isSyncedStatus;
 
@@ -633,8 +650,9 @@
                         </td>
                     </tr>
                 `;
-            });
-        };
+            }); // ĐÃ SỬA: Thay thế `};` bằng `});`
+        }; // ĐÃ SỬA: Thêm dấu đóng hàm `};`
+
         window.editReport = function (id) {
             sessionStorage.setItem('editReportId', id);
             window.location.href = 'index.html';
@@ -652,7 +670,36 @@
                 }
             }
         };
+        // THÊM HÀM NÀY ĐỂ XỬ LÝ CLICK RA VIỆN
+        window.toggleRaVien = async function (id, currentStatus) {
+            const newStatus = !currentStatus; // Đảo ngược trạng thái
 
+            try {
+                // Cập nhật lên Supabase (chú ý: đảm bảo tên bảng 'form_benh_truyen_nhiem' là đúng)
+                const { error } = await supabaseClient
+                    .from('form_benh_truyen_nhiem')
+                    .update({ ravien: newStatus })
+                    .eq('id', id);
+
+                if (error) throw error;
+
+                // Cập nhật lại dữ liệu đang lưu trong bộ nhớ tạm (local)
+                const rowIndex = allDepartmentData.findIndex(x => x.id === id);
+                if (rowIndex !== -1) {
+                    allDepartmentData[rowIndex].ravien = newStatus;
+                }
+
+                // Hiển thị thông báo
+                window.showToast(`Đã ${newStatus ? 'tích chọn' : 'bỏ chọn'} ra viện!`, 'success');
+
+                // Chạy lại bộ lọc hiện tại để render lại bảng
+                window.fetchData();
+
+            } catch (err) {
+                console.error("Lỗi cập nhật trạng thái ra viện:", err);
+                window.showToast("Lỗi cập nhật: " + err.message, 'error');
+            }
+        };
         window.printRowData = function (rowId) {
             const row = allDepartmentData.find(x => x.id === rowId);
             if (!row) { alert('Lỗi: Không tìm thấy dữ liệu.'); return; }
@@ -750,6 +797,7 @@
             const fromDateInput = document.getElementById('filterFromDate').value;
             const toDateInput = document.getElementById('filterToDate').value;
             const layMauInput = document.getElementById('filterLayMau').value;
+            const raVienInput = document.getElementById('filterRaVien') ? document.getElementById('filterRaVien').value : 'all';
 
             const tbody = document.getElementById('dataTableBody');
             tbody.innerHTML = '<tr><td colspan="10" class="text-center py-8 text-gray-500">Đang phân tích dữ liệu...</td></tr>';
@@ -826,8 +874,21 @@
                 });
             }
 
+            // ĐOẠN ĐƯỢC DI CHUYỂN VÀO ĐÚNG VỊ TRÍ
+            if (currentUser && currentUser.quyen === 'admin' && raVienInput !== 'all') {
+                filteredData = filteredData.filter(item => {
+                    if (raVienInput === 'true') {
+                        return item.ravien === true;
+                    } else if (raVienInput === 'false') {
+                        return item.ravien !== true; // Kể cả false hoặc null
+                    }
+                    return true;
+                });
+            }
+
+            // Render bảng với dữ liệu đã lọc xong
             window.renderTable(filteredData);
-        };
+        }; // ĐÂY LÀ DẤU KẾT THÚC CỦA HÀM fetchData
 
         window.addEventListener('DOMContentLoaded', async () => {
             const savedSession = sessionStorage.getItem('userSession');
@@ -857,6 +918,8 @@
 
                 if (currentUser.quyen === 'admin') {
                     document.getElementById('deptNote').innerText = "Hiển thị dữ liệu toàn viện (Quyền Admin)";
+                    const filterContainer = document.getElementById('filterRaVienContainer');
+                    if (filterContainer) filterContainer.classList.remove('hidden');
                 } else {
                     document.getElementById('deptNote').innerText = `Dữ liệu hiển thị thuộc khoa: ${currentUser.khoa}`;
                 }
