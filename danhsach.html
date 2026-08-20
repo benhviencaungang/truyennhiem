@@ -454,11 +454,12 @@
             const tbody = document.getElementById('dataTableBody');
             const thead = document.getElementById('tableHeader');
             document.getElementById('recordCount').textContent = `Tổng số ca: ${data.length}`;
-
+            
             // Render Header động dựa vào quyền
             let headerHtml = `
                 <tr>
                     <th class="px-3 py-3 text-left font-medium text-gray-500 uppercase tracking-wider w-12">STT</th>
+                    ${(currentUser && currentUser.quyen === 'admin') ? '<th class="px-3 py-3 text-center font-medium text-gray-500 uppercase tracking-wider w-16">Ra viện</th>' : ''}
                     <th class="px-3 py-3 text-left font-medium text-gray-500 uppercase tracking-wider">Họ và Tên</th>
                     <th class="px-3 py-3 text-left font-medium text-gray-500 uppercase tracking-wider">Mã Bệnh/Chẩn đoán</th>
                     <th class="px-3 py-3 text-left font-medium text-gray-500 uppercase tracking-wider">Tình trạng</th>
@@ -485,7 +486,7 @@
                 `;
                 headerHtml += `<th class="px-3 py-3 text-left font-medium text-gray-500 uppercase tracking-wider min-w-[130px]">Người báo cáo</th>`;
                 headerHtml += `<th class="px-3 py-3 text-center font-medium text-gray-500 uppercase tracking-wider">Đồng bộ</th>`;
-                headerHtml += `<th class="px-3 py-3 text-center font-medium text-gray-500 uppercase tracking-wider">Ra viện</th>`;
+                
             }
             headerHtml += `<th class="px-3 py-3 text-center font-medium text-gray-500 uppercase tracking-wider w-24">Thao tác</th></tr>`;
             thead.innerHTML = headerHtml;
@@ -585,13 +586,7 @@
                         <td class="px-3 py-3 whitespace-nowrap text-center">
                             ${isSynced ? '<span class="px-2 py-1 bg-green-100 text-green-700 text-xs rounded-full font-medium border border-green-200 shadow-sm">Đã ĐB</span>' : '<span class="text-gray-400 text-xs">-</span>'}
                         </td>
-                        <td class="px-3 py-3 whitespace-nowrap text-center">
-                            <button onclick="window.toggleRaVien(${row.id}, ${row.ravien === true})" class="focus:outline-none inline-flex items-center justify-center w-8 h-8 rounded hover:bg-gray-200 transition" title="Nhấn để đổi trạng thái">
-                                ${row.ravien === true ?
-                            '<svg class="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"></path></svg>'
-                            : '<div class="w-5 h-5 border-2 border-gray-400 rounded hover:border-blue-500 transition-colors"></div>'}
-                            </button>
-                        </td>
+                        
                     `;
                 }
 
@@ -604,6 +599,15 @@
                 tbody.innerHTML += `
                     <tr class="${rowClass}" style="${bgStyle}">
                         <td class="px-3 py-3 whitespace-nowrap ${hasTest ? 'text-red-700' : 'text-gray-500'}">${index + 1}</td>
+                        ${(currentUser && currentUser.quyen === 'admin') ? `
+                        <td class="px-3 py-3 whitespace-nowrap text-center">
+                            <button onclick="window.toggleRaVien(${row.id}, ${row.ravien === true})" class="focus:outline-none inline-flex items-center justify-center w-8 h-8 rounded hover:bg-gray-200 transition" title="Nhấn để đổi trạng thái">
+                                ${row.ravien === true ?
+                                                '<svg class="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"></path></svg>'
+                                                : '<div class="w-5 h-5 border-2 border-gray-400 rounded hover:border-blue-500 transition-colors"></div>'}
+                            </button>
+                        </td>
+                        ` : ''}
                         <td class="px-3 py-3 whitespace-nowrap">
                         <div class="font-medium ${hasTest ? 'text-red-900' : 'text-gray-900'}">${row.ho_va_ten || ''}</div>
                         ${currentUser.quyen === 'admin' ? `
@@ -896,8 +900,8 @@
                 // For demonstration/testing in editor, mocking a user if no session
                 console.warn("No user session found, mocking admin user for preview.");
                 currentUser = { ten: "Admin Preview", khoa: "Quản trị", quyen: "admin" };
-                // window.location.href = 'index.html'; 
-                // return;
+                window.location.href = 'index.html'; 
+                return;
             } else {
                 try {
                     currentUser = JSON.parse(savedSession);
@@ -929,7 +933,7 @@
 
             } catch (e) {
                 console.error(e);
-                // window.location.href = 'index.html';
+                window.location.href = 'index.html';
             }
         });
     </script>
