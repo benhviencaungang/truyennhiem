@@ -1371,16 +1371,9 @@
                     document.getElementById('userEmail').value = data.email || '';
                     document.getElementById('userKhoa').value = data.khoa || '';
                     document.getElementById('userRole').value = data.quyen;
-
+                    // Thay vì dùng atob() để giải mã, bạn sửa lại đơn giản thế này:
                     document.getElementById('userTkBtn').value = data.tk_btn || '';
-
-                    // Giải mã an toàn cho Mật khẩu Cổng ECDS (mk_btn)
-                    let decodedMkBtn = '';
-                    if (data.mk_btn) {
-                        try { decodedMkBtn = atob(data.mk_btn); }
-                        catch (e) { decodedMkBtn = data.mk_btn; }
-                    }
-                    document.getElementById('userMkBtn').value = decodedMkBtn;
+                    document.getElementById('userMkBtn').value = data.mk_btn || '';
 
                     window.openUserModal(true);
                 } else {
@@ -1388,43 +1381,44 @@
                 }
             };
             
-            window.saveUser = async function () {
-                const form = document.getElementById('userForm');
-                if (!form.checkValidity()) {
-                    form.reportValidity();
-                    return;
-                }
+            // === GIỮ LẠI ĐOẠN NÀY (Dòng 1335 đến 1372) ===
+                window.saveUser = async function () {
+                    const form = document.getElementById('userForm');
+                    if (!form.checkValidity()) {
+                        form.reportValidity();
+                        return;
+                    }
 
-                const id = document.getElementById('userId').value;
-                const mkBtnRaw = document.getElementById('userMkBtn').value; // Lấy pass ECDS
+                    const id = document.getElementById('userId').value;
+                    const rawSysPass = document.getElementById('userPass').value; // Pass hệ thống
+                    const rawMkBtn = document.getElementById('userMkBtn').value; // Pass Cổng ECDS
 
-                const payload = {
-                    ten: document.getElementById('userTen').value,
-                    tai_khoan: document.getElementById('userAcc').value,
-                    pass: document.getElementById('userPass').value,
-                    sdt: document.getElementById('userPhone').value,
-                    email: document.getElementById('userEmail').value,
-                    khoa: document.getElementById('userKhoa').value,
-                    quyen: document.getElementById('userRole').value,
+                   const payload = {
+                        ten: document.getElementById('userTen').value,
+                        tai_khoan: document.getElementById('userAcc').value,
+                        pass: rawSysPass ? btoa(rawSysPass) : null, // (Vẫn mã hóa pass hệ thống nếu bạn muốn)
+                        sdt: document.getElementById('userPhone').value,
+                        email: document.getElementById('userEmail').value,
+                        khoa: document.getElementById('userKhoa').value,
+                        quyen: document.getElementById('userRole').value,
 
-                    // TRUYỀN DỮ LIỆU CỔNG LÊN SUPABASE
-                    tk_btn: document.getElementById('userTkBtn').value || null,
-                    mk_btn: mkBtnRaw ? btoa(mkBtnRaw) : null
+                        tk_btn: document.getElementById('userTkBtn').value || null,
+                        mk_btn: rawMkBtn || null // LƯU THẲNG MẬT KHẨU GỐC KHÔNG MÃ HÓA
+                    };
+
+                    let res;
+                    if (id) { res = await supabaseClient.from('nhanvien').update(payload).eq('id', id); }
+                    else { res = await supabaseClient.from('nhanvien').insert([payload]); }
+
+                    if (res.error) {
+                        window.showToast("Lỗi: Tài khoản có thể đã bị trùng hoặc lỗi kết nối!", 'error');
+                        console.error(res.error);
+                    } else {
+                        window.showToast(id ? "Đã cập nhật thành công!" : "Đã tạo tài khoản mới!");
+                        window.closeUserModal();
+                        window.loadUsers();
+                    }
                 };
-
-                let res;
-                if (id) { res = await supabaseClient.from('nhanvien').update(payload).eq('id', id); }
-                else { res = await supabaseClient.from('nhanvien').insert([payload]); }
-
-                if (res.error) {
-                    window.showToast("Lỗi: Tài khoản có thể đã bị trùng hoặc lỗi kết nối!", 'error');
-                    console.error(res.error);
-                } else {
-                    window.showToast(id ? "Đã cập nhật thành công!" : "Đã tạo tài khoản mới!");
-                    window.closeUserModal();
-                    window.loadUsers();
-                }
-            };
 
         window.deleteUser = async function (id) {
             const isConfirm = await window.customConfirm("Xóa nhân viên", "Cảnh báo: Hành động này không thể hoàn tác!\nBạn có chắc chắn muốn xóa nhân viên này khỏi hệ thống?");
@@ -1741,7 +1735,8 @@
                 hinh_thuc_dieu_tri: document.getElementById('hinh_thuc_dieu_tri').value,
                 nguoi_bao_cao_ten: document.getElementById('nguoi_bao_cao_ten').value,
                 nguoi_bao_cao_sdt: document.getElementById('nguoi_bao_cao_sdt').value,
-                nguoi_bao_cao_email: document.getElementById('nguoi_bao_cao_email').value
+                nguoi_bao_cao_email: document.getElementById('nguoi_bao_cao_email').value,
+                thoi_gian: window.getVietnamTime()
             };
 
             const editId = sessionStorage.getItem('editReportId');
@@ -1945,7 +1940,15 @@
         window.removeAccents = function (str) {
             return str.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
         };
+        window.getVietnamTime = function () {
+                const d = new Date();
+                const localOffset = d.getTimezoneOffset() * 60000;
+                const vnOffset = 7 * 3600000;
+                const vnTime = new Date(d.getTime() + localOffset + vnOffset);
 
+                const pad = (n) => n.toString().padStart(2, '0');
+                return `${vnTime.getFullYear()}-${pad(vnTime.getMonth() + 1)}-${pad(vnTime.getDate())} ${pad(vnTime.getHours())}:${pad(vnTime.getMinutes())}:${pad(vnTime.getSeconds())}`;
+            };
         window.setupFuzzySearch = function (inputId, dropdownId, dataArrayFn, renderItemFn, onSelectFn, searchKeyFn) {
             const input = document.getElementById(inputId);
             const dropdown = document.getElementById(dropdownId);
