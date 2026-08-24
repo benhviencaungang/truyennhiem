@@ -394,7 +394,15 @@
             if (!str) return '';
             return str.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
         };
+        window.getVietnamTime = function () {
+                const d = new Date();
+                const localOffset = d.getTimezoneOffset() * 60000;
+                const vnOffset = 7 * 3600000;
+                const vnTime = new Date(d.getTime() + localOffset + vnOffset);
 
+                const pad = (n) => n.toString().padStart(2, '0');
+                return `${vnTime.getFullYear()}-${pad(vnTime.getMonth() + 1)}-${pad(vnTime.getDate())} ${pad(vnTime.getHours())}:${pad(vnTime.getMinutes())}:${pad(vnTime.getSeconds())}`;
+            };
         // Hàm tự động phân loại báo cáo dựa theo Tên bệnh/Mã ICD
         window.getPhanLoaiBaoCao = function (tenBenh) {
             if (!tenBenh) return 'tuan';
@@ -454,7 +462,7 @@
             const tbody = document.getElementById('dataTableBody');
             const thead = document.getElementById('tableHeader');
             document.getElementById('recordCount').textContent = `Tổng số ca: ${data.length}`;
-            
+
             // Render Header động dựa vào quyền
             let headerHtml = `
                 <tr>
@@ -486,7 +494,7 @@
                 `;
                 headerHtml += `<th class="px-3 py-3 text-left font-medium text-gray-500 uppercase tracking-wider min-w-[130px]">Người báo cáo</th>`;
                 headerHtml += `<th class="px-3 py-3 text-center font-medium text-gray-500 uppercase tracking-wider">Đồng bộ</th>`;
-                
+
             }
             headerHtml += `<th class="px-3 py-3 text-center font-medium text-gray-500 uppercase tracking-wider w-24">Thao tác</th></tr>`;
             thead.innerHTML = headerHtml;
@@ -603,8 +611,8 @@
                         <td class="px-3 py-3 whitespace-nowrap text-center">
                             <button onclick="window.toggleRaVien(${row.id}, ${row.ravien === true})" class="focus:outline-none inline-flex items-center justify-center w-8 h-8 rounded hover:bg-gray-200 transition" title="Nhấn để đổi trạng thái">
                                 ${row.ravien === true ?
-                                                '<svg class="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"></path></svg>'
-                                                : '<div class="w-5 h-5 border-2 border-gray-400 rounded hover:border-blue-500 transition-colors"></div>'}
+                            '<svg class="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"></path></svg>'
+                            : '<div class="w-5 h-5 border-2 border-gray-400 rounded hover:border-blue-500 transition-colors"></div>'}
                             </button>
                         </td>
                         ` : ''}
@@ -676,14 +684,17 @@
         };
         // THÊM HÀM NÀY ĐỂ XỬ LÝ CLICK RA VIỆN
         window.toggleRaVien = async function (id, currentStatus) {
-            const newStatus = !currentStatus; // Đảo ngược trạng thái
+                const newStatus = !currentStatus; // Đảo ngược trạng thái
 
-            try {
-                // Cập nhật lên Supabase (chú ý: đảm bảo tên bảng 'form_benh_truyen_nhiem' là đúng)
-                const { error } = await supabaseClient
-                    .from('form_benh_truyen_nhiem')
-                    .update({ ravien: newStatus })
-                    .eq('id', id);
+                try {
+                    // Cập nhật lên Supabase kèm theo giờ Việt Nam
+                    const { error } = await supabaseClient
+                        .from('form_benh_truyen_nhiem')
+                        .update({
+                            ravien: newStatus,
+                            thoi_gian_cap_nhat: window.getVietnamTime() // <--- THÊM DÒNG NÀY
+                        })
+                        .eq('id', id);
 
                 if (error) throw error;
 
@@ -900,7 +911,7 @@
                 // For demonstration/testing in editor, mocking a user if no session
                 console.warn("No user session found, mocking admin user for preview.");
                 currentUser = { ten: "Admin Preview", khoa: "Quản trị", quyen: "admin" };
-                window.location.href = 'index.html'; 
+                window.location.href = 'index.html';
                 return;
             } else {
                 try {
