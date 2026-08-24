@@ -246,7 +246,16 @@
                 setTimeout(() => { toast.classList.add('hidden'); }, 300);
             }, 4000);
         };
+        window.getVietnamTime = function () {
+                const d = new Date();
+                // Tính toán bù trừ múi giờ hiện tại để ép về GMT+7 (Việt Nam)
+                const localOffset = d.getTimezoneOffset() * 60000;
+                const vnOffset = 7 * 3600000;
+                const vnTime = new Date(d.getTime() + localOffset + vnOffset);
 
+                const pad = (n) => n.toString().padStart(2, '0');
+                return `${vnTime.getFullYear()}-${pad(vnTime.getMonth() + 1)}-${pad(vnTime.getDate())} ${pad(vnTime.getHours())}:${pad(vnTime.getMinutes())}:${pad(vnTime.getSeconds())}`;
+            };
         window.parseVietnameseDate = function (dateString) {
             if (!dateString) return null;
             const parts = dateString.split('/');
@@ -729,7 +738,14 @@
         window.pushDataToECDS = async function () {
                 const btnPush = document.getElementById('btnPush');
 
-                // 1. Lấy thông tin tài khoản cổng từ user hiện tại trong database
+                // 1. Khai báo checkedBoxes trước tiên để tránh lỗi
+                const checkedBoxes = Array.from(document.querySelectorAll('.cb-push:checked'));
+                if (checkedBoxes.length === 0) {
+                    window.showToast("Bạn chưa chọn ca bệnh nào để đẩy", "error");
+                    return;
+                }
+
+                // 2. Lấy thông tin tài khoản cổng từ user hiện tại trong database
                 const { data: userData, error: userErr } = await supabaseClient
                     .from('nhanvien')
                     .select('tk_btn, mk_btn')
@@ -737,19 +753,13 @@
                     .single();
 
                 if (userErr || !userData || !userData.tk_btn || !userData.mk_btn) {
-                    window.showToast("Tài khoản của bạn chưa được cấu hình tài khoản Cổng ECDS. Vui lòng liên hệ Admin!", "error");
+                    window.showToast("Tài khoản của bạn chưa được cấu hình. Vui lòng liên hệ Admin!", "error");
                     return;
                 }
 
-                const user = userData.tk_btn;
-                let pass = '';
-                try { pass = atob(userData.mk_btn); } catch (e) { pass = userData.mk_btn; }
-
-                const checkedBoxes = Array.from(document.querySelectorAll('.cb-push:checked'));
-                if (checkedBoxes.length === 0) {
-                    window.showToast("Bạn chưa chọn ca bệnh nào để đẩy", "error");
-                    return;
-                }
+                // 3. MỞ MÃ HÓA (GIẢI MÃ) MẬT KHẨU TRƯỚC KHI GỬI LÊN CỔNG
+                const user = (userData.tk_btn || '').trim();
+                const pass = (userData.mk_btn || '').trim();
 
                 btnPush.disabled = true;
                 btnPush.innerHTML = "ĐANG KẾT NỐI ECDS...";
@@ -888,7 +898,8 @@
                             so_ca_day: payloadBatch.length,
                             so_ca_thanh_cong: pushData.duLieu.soThanhCong,
                             so_ca_loi: pushData.duLieu.soLoi,
-                            chi_tiet_loi: dsLoi.length > 0 ? dsLoi.join(' | ') : 'Không có lỗi'
+                            chi_tiet_loi: dsLoi.length > 0 ? dsLoi.join(' | ') : 'Không có lỗi',
+                            thoi_gian: window.getVietnamTime()
                         }]);
 
                         // Bật Modal báo lỗi chi tiết nếu có ca đẩy lỗi
@@ -919,7 +930,8 @@
                             so_ca_day: payloadBatch.length,
                             so_ca_thanh_cong: 0,
                             so_ca_loi: payloadBatch.length,
-                            chi_tiet_loi: "Lỗi toàn hệ thống: " + thongDiepLoi
+                            chi_tiet_loi: "Lỗi toàn hệ thống: " + thongDiepLoi,
+                            thoi_gian: window.getVietnamTime() // <--- Thêm dòng này
                         }]);
 
                         document.getElementById('errorList').innerHTML = dsLoi.join('');
@@ -937,7 +949,8 @@
                         so_ca_day: payloadBatch.length,
                         so_ca_thanh_cong: 0,
                         so_ca_loi: payloadBatch.length,
-                        chi_tiet_loi: "Lỗi ngoại lệ Catch: " + err.message
+                        chi_tiet_loi: "Lỗi ngoại lệ Catch: " + err.message,
+                        thoi_gian: window.getVietnamTime()
                     }]);
                 }
 
