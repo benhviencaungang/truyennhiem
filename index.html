@@ -318,9 +318,9 @@
                                     class="w-full border border-gray-300 rounded p-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none">
                             </div>
                             <div>
-                                <label class="block text-sm font-medium text-gray-700 mb-1">CMND/CCCD (3) <span
+                                <label class="block text-sm font-medium text-gray-700 mb-1">CMND/CCCD/HC (3) <span
                                         id="cmnd_asterisk" class="text-red-500">*</span></label>
-                                <input type="text" id="cmnd" required maxlength="12" oninput="this.value = this.value.replace(/[^0-9]/g, '')" placeholder="Nhập CCCD (Dưới 14T không có thì nhập CCCD người theo và ghi chú)"
+                                <input type="text" id="cmnd" required maxlength="20" oninput="this.value = this.value.replace(/[^0-9]/g, '')" placeholder="Nhập 9, 12 hoặc 20 số (Dưới 14T nhập của người đi theo)"
                                     class="w-full border border-gray-300 rounded p-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none">
                             </div>
                             <div>
@@ -1621,21 +1621,26 @@
                 }
             }
 
-            // 2. Kiểm tra độc lập CCCD (Chốt chặn ở Bước 1 và lúc Submit Bước 5)
+            // 2. Kiểm tra độc lập CMND/CCCD/HC (Chốt chặn ở Bước 1 và lúc Submit Bước 5)
             if (step === 1 || step === 5) {
                 const cmndInput = document.getElementById('cmnd');
                 if (cmndInput) {
                     const cccdValue = cmndInput.value.trim();
-                    if (cccdValue.length !== 12) {
-                        window.showToast("Lỗi: CCCD phải bao gồm đúng 12 chữ số!", "error");
+                    const len = cccdValue.length;
+                    
+                    // Kiểm tra độ dài: Chỉ cho phép 9, 12 hoặc 20 số
+                    if (len !== 9 && len !== 12 && len !== 20) {
+                        window.showToast("Lỗi: Chỉ được nhập 9 số (CMND), 12 số (CCCD) hoặc 20 số (Hộ chiếu)!", "error");
                         if (step === 5 && currentStep !== 1) window.goToStep(1); // Ép quay về B1 nếu đang ở B5
                         cmndInput.focus();
                         cmndInput.classList.add('border-red-500', 'ring-red-200');
                         setTimeout(() => cmndInput.classList.remove('border-red-500', 'ring-red-200'), 2000);
                         return false;
                     }
-                    if (cccdValue === '000000000000') {
-                        window.showToast("Lỗi: Không được nhập 12 số 0 vào CCCD!", "error");
+                    
+                    // Kiểm tra chuỗi toàn số 0 
+                    if (/^0+$/.test(cccdValue)) {
+                        window.showToast("Lỗi: Không được nhập toàn số 0!", "error");
                         if (step === 5 && currentStep !== 1) window.goToStep(1); // Ép quay về B1 nếu đang ở B5
                         cmndInput.focus();
                         cmndInput.classList.add('border-red-500', 'ring-red-200');
@@ -1709,12 +1714,13 @@
         window.submitForm = async function () {
             if (!window.validateStep(5)) { window.showToast("Vui lòng điền đủ các trường bắt buộc", 'error'); return; }
 
-            // CHỐT CHẶN TRƯỚC KHI LƯU: Ép kiểm tra CCCD một lần nữa
+            // CHỐT CHẶN TRƯỚC KHI LƯU: Ép kiểm tra số lượng ký tự một lần nữa
             const cmndInput = document.getElementById('cmnd');
             if (cmndInput) {
                 const cccdVal = cmndInput.value.trim();
-                if (cccdVal.length !== 12 || cccdVal === '000000000000') {
-                    window.showToast("Lỗi: CCCD không hợp lệ (Phải đúng 12 số và không được toàn số 0)!", "error");
+                const len = cccdVal.length;
+                if ((len !== 9 && len !== 12 && len !== 20) || /^0+$/.test(cccdVal)) {
+                    window.showToast("Lỗi: Giấy tờ không hợp lệ (Phải là 9, 12, hoặc 20 số và không được toàn số 0)!", "error");
                     window.goToStep(1); // Tự động quay về Tab 1
                     cmndInput.focus();
                     cmndInput.classList.add('border-red-500', 'ring-red-200');
