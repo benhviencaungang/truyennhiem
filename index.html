@@ -319,8 +319,8 @@
                             </div>
                             <div>
                                 <label class="block text-sm font-medium text-gray-700 mb-1">CMND/CCCD (3) <span
-                                        id="cmnd_asterisk" class="text-red-500 hidden">*</span></label>
-                                <input type="text" id="cmnd" placeholder="Số định danh cá nhân"
+                                        id="cmnd_asterisk" class="text-red-500">*</span></label>
+                                <input type="text" id="cmnd" required maxlength="12" oninput="this.value = this.value.replace(/[^0-9]/g, '')" placeholder="Nhập CCCD (Dưới 14T không có thì nhập CCCD người theo và ghi chú)"
                                     class="w-full border border-gray-300 rounded p-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none">
                             </div>
                             <div>
@@ -1609,12 +1609,39 @@
         window.validateStep = function (step) {
             const stepDiv = document.getElementById(`step${step}`);
             const requiredInputs = stepDiv.querySelectorAll('input[required], select[required], textarea[required]');
+            
+            // 1. Kiểm tra các trường trống
             for (let input of requiredInputs) {
                 if (!input.value.trim() && !input.disabled) {
+                    window.showToast("Lỗi: Vui lòng điền đủ các trường bắt buộc có dấu (*)", "error"); // Đưa thông báo chung vào đây
                     input.focus();
                     input.classList.add('border-red-500', 'ring-red-200');
                     setTimeout(() => input.classList.remove('border-red-500', 'ring-red-200'), 2000);
                     return false;
+                }
+            }
+
+            // 2. Kiểm tra độc lập CCCD (Chốt chặn ở Bước 1 và lúc Submit Bước 5)
+            if (step === 1 || step === 5) {
+                const cmndInput = document.getElementById('cmnd');
+                if (cmndInput) {
+                    const cccdValue = cmndInput.value.trim();
+                    if (cccdValue.length !== 12) {
+                        window.showToast("Lỗi: CCCD phải bao gồm đúng 12 chữ số!", "error");
+                        if (step === 5 && currentStep !== 1) window.goToStep(1); // Ép quay về B1 nếu đang ở B5
+                        cmndInput.focus();
+                        cmndInput.classList.add('border-red-500', 'ring-red-200');
+                        setTimeout(() => cmndInput.classList.remove('border-red-500', 'ring-red-200'), 2000);
+                        return false;
+                    }
+                    if (cccdValue === '000000000000') {
+                        window.showToast("Lỗi: Không được nhập 12 số 0 vào CCCD!", "error");
+                        if (step === 5 && currentStep !== 1) window.goToStep(1); // Ép quay về B1 nếu đang ở B5
+                        cmndInput.focus();
+                        cmndInput.classList.add('border-red-500', 'ring-red-200');
+                        setTimeout(() => cmndInput.classList.remove('border-red-500', 'ring-red-200'), 2000);
+                        return false;
+                    }
                 }
             }
 
@@ -1651,8 +1678,7 @@
 
         window.goToStep = function (step) {
             if (step > currentStep && !window.validateStep(currentStep)) {
-                window.showToast("Vui lòng điền đủ các trường bắt buộc có dấu (*)", 'error');
-                return;
+                return; // Chỉ chặn lại, không gọi Toast nữa vì đã báo lỗi chi tiết ở trên
             }
 
             document.querySelectorAll('.step-content').forEach(el => {
@@ -1682,6 +1708,20 @@
 
         window.submitForm = async function () {
             if (!window.validateStep(5)) { window.showToast("Vui lòng điền đủ các trường bắt buộc", 'error'); return; }
+
+            // CHỐT CHẶN TRƯỚC KHI LƯU: Ép kiểm tra CCCD một lần nữa
+            const cmndInput = document.getElementById('cmnd');
+            if (cmndInput) {
+                const cccdVal = cmndInput.value.trim();
+                if (cccdVal.length !== 12 || cccdVal === '000000000000') {
+                    window.showToast("Lỗi: CCCD không hợp lệ (Phải đúng 12 số và không được toàn số 0)!", "error");
+                    window.goToStep(1); // Tự động quay về Tab 1
+                    cmndInput.focus();
+                    cmndInput.classList.add('border-red-500', 'ring-red-200');
+                    setTimeout(() => cmndInput.classList.remove('border-red-500', 'ring-red-200'), 2000);
+                    return; // Hủy lệnh lưu báo cáo
+                }
+            }
 
             const btn = document.getElementById('btnSubmit');
             const originalText = btn.innerHTML;
@@ -2051,9 +2091,9 @@
                 if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) age--;
 
                 if (age < 14) {
-                    cmndInput.required = false;
-                    cmndAsterisk.classList.add('hidden');
-                    cmndInput.placeholder = "Không bắt buộc (Dưới 14 tuổi)";
+                    cmndInput.required = true; // Bắt buộc ở mọi độ tuổi
+                    cmndAsterisk.classList.remove('hidden');
+                    cmndInput.placeholder = "Dưới 14T không có thì điền CCCD người theo và ghi chú";
                 } else {
                     cmndInput.required = true;
                     cmndAsterisk.classList.remove('hidden');
