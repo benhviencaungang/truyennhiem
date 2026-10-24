@@ -264,26 +264,13 @@
         };
 
         window.fetchAllSupabaseData = async function (tableName) {
-            let allData = [];
-            let from = 0;
-            const step = 999;
-            let keepFetching = true;
             try {
-                while (keepFetching) {
-                    const { data, error } = await supabaseClient.from(tableName).select('*').range(from, from + step);
-                    if (error) {
-                        console.warn(`Lỗi tải [${tableName}]:`, error.message);
-                        return [];
-                    }
-                    if (!data || data.length === 0) {
-                        keepFetching = false;
-                    } else {
-                        allData = allData.concat(data);
-                        if (data.length <= step) keepFetching = false;
-                        else from += (step + 1);
-                    }
+                const { data, error } = await supabaseClient.from(tableName).select('*');
+                if (error) {
+                    console.warn(`Lỗi tải [${tableName}]:`, error.message);
+                    return [];
                 }
-                return allData;
+                return data || [];
             } catch (err) {
                 console.error("Lỗi Fetch Data:", err);
                 return [];
