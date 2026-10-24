@@ -179,7 +179,7 @@
         </div>
 
         <div class="bg-white rounded-lg shadow-sm border border-gray-200 flex-1 overflow-hidden flex flex-col">
-            <div class="overflow-x-auto overflow-y-auto flex-1 hide-scrollbar relative">
+            <div class="overflow-x-auto overflow-y-auto flex-1 custom-scrollbar relative">
                 <table class="min-w-full divide-y divide-gray-200 text-sm">
                     <thead class="bg-gray-50 sticky top-0 z-10 shadow-sm" id="tableHeader">
                         <!-- Header sẽ được render bằng JS dựa vào quyền user -->
@@ -192,8 +192,13 @@
                     </tbody>
                 </table>
             </div>
-            <div class="bg-gray-50 border-t border-gray-200 p-3 text-sm text-gray-600 flex justify-between shrink-0">
-                <span id="recordCount">Tổng số ca: 0</span>
+            <div class="bg-gray-50 border-t border-gray-200 p-3 text-sm text-gray-600 flex justify-between items-center shrink-0">
+                <span id="recordCount" class="font-medium">Tổng số ca: 0</span>
+                <div id="paginationControls" class="flex items-center space-x-2 hidden">
+                    <button onclick="window.prevPage()" id="btnPrevPage" class="px-3 py-1 bg-white border border-gray-300 rounded hover:bg-gray-100 transition disabled:opacity-50 disabled:cursor-not-allowed">Trước</button>
+                    <span id="pageInfo" class="font-medium">Trang 1 / 1</span>
+                    <button onclick="window.nextPage()" id="btnNextPage" class="px-3 py-1 bg-white border border-gray-300 rounded hover:bg-gray-100 transition disabled:opacity-50 disabled:cursor-not-allowed">Sau</button>
+                </div>
                 <span id="deptNote" class="italic">Đang tải...</span>
             </div>
         </div>
@@ -359,7 +364,24 @@
         let currentUser = null;
         let allDepartmentData = [];
         let danhMucBenh = [];
+        let currentPage = 1;
+        const itemsPerPage = 50;
+        let currentFilteredData = [];
 
+        window.prevPage = function () {
+            if (currentPage > 1) {
+                currentPage--;
+                window.renderCurrentPage();
+            }
+        };
+
+        window.nextPage = function () {
+            const totalPages = Math.ceil(currentFilteredData.length / itemsPerPage);
+            if (currentPage < totalPages) {
+                currentPage++;
+                window.renderCurrentPage();
+            }
+        };
         window.showToast = function (message, type = 'success') {
             const toast = document.getElementById('toast');
             document.getElementById('toastMsg').textContent = message;
@@ -426,23 +448,10 @@
         };
 
         window.fetchAllSupabaseData = async function (tableName) {
-            let allData = [];
-            let from = 0;
-            const step = 999;
-            let keepFetching = true;
-
             try {
-                while (keepFetching) {
-                    const { data, error } = await supabaseClient.from(tableName).select('*').range(from, from + step);
-                    if (error) return [];
-                    if (!data || data.length === 0) keepFetching = false;
-                    else {
-                        allData = allData.concat(data);
-                        if (data.length <= step) keepFetching = false;
-                        else from += (step + 1);
-                    }
-                }
-                return allData;
+                const { data, error } = await supabaseClient.from(tableName).select('*');
+                if (error) return [];
+                return data || [];
             } catch (err) {
                 return [];
             }
@@ -458,10 +467,24 @@
         };
 
         // ĐÃ SỬA: Hàm renderTable gộp toàn bộ các tính năng mới
-        window.renderTable = function (data) {
+        window.renderCurrentPage = function () {
+            const data = currentFilteredData;
             const tbody = document.getElementById('dataTableBody');
             const thead = document.getElementById('tableHeader');
+            
+            // Cập nhật giao diện phân trang
+            const totalPages = Math.ceil(data.length / itemsPerPage) || 1;
             document.getElementById('recordCount').textContent = `Tổng số ca: ${data.length}`;
+            document.getElementById('pageInfo').textContent = `Trang ${currentPage} / ${totalPages}`;
+            
+            const paginationDiv = document.getElementById('paginationControls');
+            if (data.length > itemsPerPage) {
+                paginationDiv.classList.remove('hidden');
+                document.getElementById('btnPrevPage').disabled = currentPage === 1;
+                document.getElementById('btnNextPage').disabled = currentPage === totalPages;
+            } else {
+                paginationDiv.classList.add('hidden');
+            }
 
             // Render Header động dựa vào quyền
             let headerHtml = `
@@ -477,7 +500,6 @@
                     <th class="px-3 py-3 text-left font-medium text-gray-500 uppercase tracking-wider">Thông tin xét nghiệm</th>
             `;
             if (currentUser && currentUser.quyen === 'admin') {
-                // Thêm các cột hiển thị riêng cho Admin
                 headerHtml += `
                     <th class="px-3 py-3 text-left font-medium text-gray-500 uppercase tracking-wider min-w-[100px]">Ngày sinh</th>
                     <th class="px-3 py-3 text-left font-medium text-gray-500 uppercase tracking-wider min-w-[80px]">Giới tính</th>
@@ -491,22 +513,28 @@
                     <th class="px-3 py-3 text-left font-medium text-gray-500 uppercase tracking-wider min-w-[120px]">Điều trị (Vaccine)</th>
                     <th class="px-3 py-3 text-center font-medium text-gray-500 uppercase tracking-wider min-w-[100px]">Số lần tiêm</th>
                     <th class="px-3 py-3 text-left font-medium text-gray-500 uppercase tracking-wider min-w-[150px]">Ghi chú</th>
+                    <th class="px-3 py-3 text-left font-medium text-gray-500 uppercase tracking-wider min-w-[130px]">Người báo cáo</th>
+                    <th class="px-3 py-3 text-center font-medium text-gray-500 uppercase tracking-wider">Đồng bộ</th>
                 `;
-                headerHtml += `<th class="px-3 py-3 text-left font-medium text-gray-500 uppercase tracking-wider min-w-[130px]">Người báo cáo</th>`;
-                headerHtml += `<th class="px-3 py-3 text-center font-medium text-gray-500 uppercase tracking-wider">Đồng bộ</th>`;
-
             }
             headerHtml += `<th class="px-3 py-3 text-center font-medium text-gray-500 uppercase tracking-wider w-24">Thao tác</th></tr>`;
             thead.innerHTML = headerHtml;
 
             if (data.length === 0) {
-                const colSpan = (currentUser && currentUser.quyen === 'admin') ? 12 : 9;
+                const colSpan = (currentUser && currentUser.quyen === 'admin') ? 23 : 10;
                 tbody.innerHTML = `<tr><td colspan="${colSpan}" class="text-center py-8 text-gray-500 font-medium">Không tìm thấy ca bệnh nào phù hợp.</td></tr>`;
                 return;
             }
 
             tbody.innerHTML = '';
-            data.forEach((row, index) => {
+            
+            // Cắt dữ liệu 50 phần tử cho trang hiện tại
+            const startIndex = (currentPage - 1) * itemsPerPage;
+            const pageData = data.slice(startIndex, startIndex + itemsPerPage);
+
+            pageData.forEach((row, pageIndex) => {
+                const absoluteIndex = startIndex + pageIndex;
+                
                 let statusColor = "bg-gray-100 text-gray-800";
                 if (row.tinh_trang_hien_tai && row.tinh_trang_hien_tai.includes('Ra viện')) statusColor = "bg-green-100 text-green-800";
                 if (row.tinh_trang_hien_tai && row.tinh_trang_hien_tai.includes('Tử vong')) statusColor = "bg-red-100 text-red-800";
@@ -526,7 +554,6 @@
                     }
                 }
 
-                // --- BẮT ĐẦU THÊM MỚI: TẠO MÀU NỀN TỰ ĐỘNG THEO TÊN BỆNH ---
                 let hashColor = 0;
                 let diseaseKey = tenBenhHienThi.trim().toUpperCase();
                 for (let i = 0; i < diseaseKey.length; i++) {
@@ -534,13 +561,10 @@
                 }
                 const hue = Math.abs(hashColor) % 360;
                 const bgStyle = `background-color: hsl(${hue}, 65%, 96%);`;
-                // --- KẾT THÚC THÊM MỚI ---
 
-                // Check if testing was done
                 const hasTest = row.lay_mau_xn && row.lay_mau_xn.includes('Có');
                 const rowClass = hasTest ? "table-row-hover transition row-has-test" : "table-row-hover transition";
 
-                // Chuẩn bị chuỗi thông tin xét nghiệm
                 let testInfo = "-";
                 if (hasTest) {
                     let loaiXnHtml = row.loai_xn ? `Loại: <b>${row.loai_xn}</b>` : '';
@@ -555,12 +579,11 @@
                     testInfo = `<div class="text-xs text-gray-700 leading-tight mt-1">${testDetails}</div>`;
                 }
 
-                // Chuẩn bị cột đồng bộ & Người lập (chỉ hiện cho admin)
                 let adminCols = '';
                 if (currentUser && currentUser.quyen === 'admin') {
                     const isSynced = row.dong_bo_ecds === 1;
                     const nguoiLap = row.nguoi_bao_cao_ten || 'Không rõ';
-                    const sdtNguoiLap = row.nguoi_bao_cao_sdt || ''; // Lấy SĐT người báo cáo
+                    const sdtNguoiLap = row.nguoi_bao_cao_sdt || '';
 
                     let sdtHtml = '';
                     if (sdtNguoiLap) {
@@ -574,7 +597,6 @@
                     }
 
                     adminCols = `
-                        <!-- Dữ liệu các cột mới thêm cho Admin -->
                         <td class="px-3 py-3 whitespace-nowrap text-sm text-gray-700">${row.ngay_sinh || '-'}</td>
                         <td class="px-3 py-3 whitespace-nowrap text-sm text-gray-700">${row.gioi_tinh || '-'}</td>
                         <td class="px-3 py-3 whitespace-nowrap text-sm text-gray-700">${row.dan_toc || '-'}</td>
@@ -587,26 +609,20 @@
                         <td class="px-3 py-3 whitespace-nowrap text-sm text-gray-700">${row.dieu_tri_vaccine || '-'}</td>
                         <td class="px-3 py-3 whitespace-nowrap text-sm text-gray-700 text-center font-bold">${row.so_lan_tiem || '-'}</td>
                         <td class="px-3 py-3 whitespace-normal break-words text-sm text-gray-500 min-w-[150px] italic">${row.ghi_chu || '-'}</td>
-                        
-                        <!-- Cột cũ -->
                         <td class="px-3 py-3 whitespace-normal break-words text-sm font-medium text-blue-700 min-w-[130px]">
                             <div>${nguoiLap}</div>${sdtHtml}</td>
                         <td class="px-3 py-3 whitespace-nowrap text-center">
                             ${isSynced ? '<span class="px-2 py-1 bg-green-100 text-green-700 text-xs rounded-full font-medium border border-green-200 shadow-sm">Đã ĐB</span>' : '<span class="text-gray-400 text-xs">-</span>'}
                         </td>
-                        
                     `;
                 }
 
-                // Kiểm tra trạng thái đã đồng bộ hay chưa (1 là đã đồng bộ)
                 const isSyncedStatus = row.dong_bo_ecds === 1;
-
-                // Quyền Sửa/Xóa: Admin luôn được phép, User thường chỉ được phép khi CHƯA đồng bộ
                 const canEditOrDelete = (currentUser && currentUser.quyen === 'admin') || !isSyncedStatus;
 
                 tbody.innerHTML += `
                     <tr class="${rowClass}" style="${bgStyle}">
-                        <td class="px-3 py-3 whitespace-nowrap ${hasTest ? 'text-red-700' : 'text-gray-500'}">${index + 1}</td>
+                        <td class="px-3 py-3 whitespace-nowrap ${hasTest ? 'text-red-700' : 'text-gray-500'}">${absoluteIndex + 1}</td>
                         ${(currentUser && currentUser.quyen === 'admin') ? `
                         <td class="px-3 py-3 whitespace-nowrap text-center">
                             <button onclick="window.toggleRaVien(${row.id}, ${row.ravien === true})" class="focus:outline-none inline-flex items-center justify-center w-8 h-8 rounded hover:bg-gray-200 transition" title="Nhấn để đổi trạng thái">
@@ -662,7 +678,7 @@
                         </td>
                     </tr>
                 `;
-            }); // ĐÃ SỬA: Thay thế `};` bằng `});`
+            });
         }; // ĐÃ SỬA: Thêm dấu đóng hàm `};`
 
         window.editReport = function (id) {
@@ -819,27 +835,19 @@
 
             if (allDepartmentData.length === 0) {
                 try {
-                    let from = 0; const step = 999; let keep = true;
-                    while (keep) {
-                        let query = supabaseClient
-                            .from('form_benh_truyen_nhiem')
-                            .select('*')
-                            .order('id', { ascending: false })
-                            .range(from, from + step);
+                    let query = supabaseClient
+                        .from('form_benh_truyen_nhiem')
+                        .select('*')
+                        .order('id', { ascending: false });
 
-                        if (currentUser.quyen !== 'admin') {
-                            query = query.eq('khoa_phong', currentUser.khoa);
-                        }
-
-                        const { data, error } = await query;
-
-                        if (error) { throw error; }
-                        if (!data || data.length === 0) { keep = false; }
-                        else {
-                            allDepartmentData = allDepartmentData.concat(data);
-                            if (data.length <= step) keep = false; else from += (step + 1);
-                        }
+                    if (currentUser.quyen !== 'admin') {
+                        query = query.eq('khoa_phong', currentUser.khoa);
                     }
+
+                    const { data, error } = await query;
+                    if (error) throw error;
+                    
+                    allDepartmentData = data || [];
                 } catch (e) {
                     console.error(e);
                     tbody.innerHTML = `<tr><td colspan="10" class="text-center py-8 text-red-500">Lỗi tải dữ liệu: ${e.message}</td></tr>`;
@@ -902,7 +910,9 @@
             }
 
             // Render bảng với dữ liệu đã lọc xong
-            window.renderTable(filteredData);
+            currentFilteredData = filteredData;
+            currentPage = 1; // Reset về trang 1 mỗi khi lọc mới
+            window.renderCurrentPage();
         }; // ĐÂY LÀ DẤU KẾT THÚC CỦA HÀM fetchData
 
         window.addEventListener('DOMContentLoaded', async () => {
