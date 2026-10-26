@@ -1430,18 +1430,42 @@
         };
 
         window.fetchAllSupabaseData = async function (tableName) {
-            try {
-                const { data, error } = await supabaseClient.from(tableName).select('*');
-                if (error) {
-                    console.warn(`Lỗi tải [${tableName}]:`, error.message);
+                try {
+                    let allData = [];
+                    let limit = 1000;
+                    let from = 0;
+                    let to = limit - 1;
+                    let hasMore = true;
+
+                    while (hasMore) {
+                        const { data, error } = await supabaseClient
+                            .from(tableName)
+                            .select('*')
+                            .range(from, to);
+
+                        if (error) {
+                            console.warn(`Lỗi tải [${tableName}]:`, error.message);
+                            return allData; // Trả về dữ liệu đã lấy được nếu xảy ra lỗi giữa chừng
+                        }
+
+                        if (data && data.length > 0) {
+                            allData = allData.concat(data);
+                            from += limit;
+                            to += limit;
+                        }
+
+                        // Nếu số dòng trả về ít hơn limit, nghĩa là đã lấy hết dữ liệu
+                        if (!data || data.length < limit) {
+                            hasMore = false;
+                        }
+                    }
+
+                    return allData;
+                } catch (err) {
+                    console.error("Lỗi Fetch Data:", err);
                     return [];
                 }
-                return data || [];
-            } catch (err) {
-                console.error("Lỗi Fetch Data:", err);
-                return [];
-            }
-        };
+            };
 
         window.loadMasterData = async function () {
             try {
