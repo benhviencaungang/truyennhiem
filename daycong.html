@@ -264,16 +264,42 @@
         };
 
         window.fetchAllSupabaseData = async function (tableName) {
+            let allData = [];
+            let from = 0;
+            const limit = 1000;
+            let to = limit - 1;
+            let hasMore = true;
+
             try {
-                const { data, error } = await supabaseClient.from(tableName).select('*');
-                if (error) {
-                    console.warn(`Lỗi tải [${tableName}]:`, error.message);
-                    return [];
+                while (hasMore) {
+                    const { data, error } = await supabaseClient
+                        .from(tableName)
+                        .select('*')
+                        .range(from, to);
+
+                    if (error) {
+                        console.warn(`Lỗi tải [${tableName}]:`, error.message);
+                        break;
+                    }
+
+                    if (data && data.length > 0) {
+                        allData = allData.concat(data);
+                        
+                        // Nếu số dòng trả về ít hơn giới hạn, nghĩa là đã lấy hết dữ liệu
+                        if (data.length < limit) {
+                            hasMore = false;
+                        } else {
+                            from += limit;
+                            to += limit;
+                        }
+                    } else {
+                        hasMore = false;
+                    }
                 }
-                return data || [];
+                return allData;
             } catch (err) {
                 console.error("Lỗi Fetch Data:", err);
-                return [];
+                return allData;
             }
         };
 
