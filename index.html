@@ -1802,7 +1802,7 @@
             try {
                 // Truy vấn tìm các ca bệnh có cùng Tên hoặc cùng CCCD để tối ưu hiệu suất truy vấn
                 let checkQuery = supabaseClient.from('form_benh_truyen_nhiem')
-                    .select('id, ho_va_ten, cmnd, ngay_sinh, ngay_nhap_vien');
+                    .select('id, ho_va_ten, cmnd, chan_doan_chinh'); // Chỉ lấy các trường cần thiết
 
                 if (editId) {
                     checkQuery = checkQuery.neq('id', editId); // Bỏ qua bản ghi đang sửa
@@ -1818,29 +1818,34 @@
                     let isDuplicate = false;
 
                     for (let record of existingRecords) {
-                        let matchCount = 0;
+                        let isNameMatch = false;
+                        let isCmndMatch = false;
+                        let isDiagnosisMatch = false;
 
                         // 1. So sánh Tên (không phân biệt hoa thường)
-                        if (record.ho_va_ten && payload.ho_va_ten && record.ho_va_ten.trim().toLowerCase() === payload.ho_va_ten.trim().toLowerCase()) matchCount++;
+                        if (record.ho_va_ten && payload.ho_va_ten && record.ho_va_ten.trim().toLowerCase() === payload.ho_va_ten.trim().toLowerCase()) {
+                            isNameMatch = true;
+                        }
 
                         // 2. So sánh CCCD
-                        if (record.cmnd && payload.cmnd && record.cmnd.trim() === payload.cmnd.trim()) matchCount++;
+                        if (record.cmnd && payload.cmnd && record.cmnd.trim() === payload.cmnd.trim()) {
+                            isCmndMatch = true;
+                        }
 
-                        // 3. So sánh Ngày sinh (đã format DD/MM/YYYY)
-                        if (record.ngay_sinh && payload.ngay_sinh && record.ngay_sinh === payload.ngay_sinh) matchCount++;
+                        // 3. So sánh Chẩn đoán chính (So sánh mã bệnh/tên bệnh)
+                        if (record.chan_doan_chinh && payload.chan_doan_chinh && record.chan_doan_chinh.trim().toLowerCase() === payload.chan_doan_chinh.trim().toLowerCase()) {
+                            isDiagnosisMatch = true;
+                        }
 
-                        // 4. So sánh Ngày nhập viện/Ngày khám (đã format DD/MM/YYYY)
-                        if (record.ngay_nhap_vien && payload.ngay_nhap_vien && record.ngay_nhap_vien === payload.ngay_nhap_vien) matchCount++;
-
-                        // Nếu trùng từ 3 điều kiện trở lên
-                        if (matchCount >= 3) {
+                        // Nếu trùng CẢ 3 thông tin: Tên + CCCD + Chẩn đoán chính thì mới báo trùng
+                        if (isNameMatch && isCmndMatch && isDiagnosisMatch) {
                             isDuplicate = true;
                             break; // Dừng vòng lặp ngay khi phát hiện trùng
                         }
                     }
 
                     if (isDuplicate) {
-                        window.showToast("Cảnh báo: Dữ liệu bị trùng! Bệnh nhân này đã tồn tại trong hệ thống (Trùng từ 3/4 thông tin cơ bản).", "error");
+                        window.showToast("Cảnh báo: Dữ liệu bị trùng! Bệnh nhân này đã được báo cáo với bệnh/chẩn đoán này rồi.", "error");
                         btn.innerHTML = originalText;
                         btn.disabled = false;
                         return; // Dừng việc lưu vào Database, form vẫn giữ nguyên để sửa
